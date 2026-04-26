@@ -710,7 +710,9 @@ export class SettingsManager {
 	}
 
 	getQuietStartup(): boolean {
-		return this.settings.quietStartup ?? false;
+		// lime-agent: quiet by default — the splash header replaces the
+		// [Context]/[Skills]/[Extensions]/[Themes] listing on startup.
+		return this.settings.quietStartup ?? true;
 	}
 
 	setQuietStartup(quiet: boolean): void {
@@ -974,7 +976,9 @@ export class SettingsManager {
 	}
 
 	getEditorPaddingX(): number {
-		return this.settings.editorPaddingX ?? 0;
+		// lime-agent default: 1 col of horizontal padding — just enough to keep
+		// the cursor off the box wall without looking airy.
+		return this.settings.editorPaddingX ?? 1;
 	}
 
 	setEditorPaddingX(padding: number): void {

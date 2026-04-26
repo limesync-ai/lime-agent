@@ -83,6 +83,20 @@ export class ProcessTerminal implements Terminal {
 		return this._kittyProtocolActive;
 	}
 
+	/**
+	 * Synchronous best-effort cleanup for unexpected process exit. Restores the
+	 * main screen buffer and disables bracketed paste so the parent shell isn't
+	 * left in an undefined state. Written via fs.writeSync to survive an exit
+	 * handler context where process.stdout may not flush.
+	 */
+	private emergencyRestore = (): void => {
+		try {
+			fs.writeSync(1, "\x1b[?1049l\x1b[?2004l");
+		} catch {
+			// nothing we can do if stdout is gone
+		}
+	};
+
 	start(onInput: (data: string) => void, onResize: () => void): void {
 		this.inputHandler = onInput;
 		this.resizeHandler = onResize;
@@ -95,8 +109,18 @@ export class ProcessTerminal implements Terminal {
 		process.stdin.setEncoding("utf8");
 		process.stdin.resume();
 
+		// Enter alternate screen buffer so the TUI gets a dedicated fullscreen canvas
+		// that is restored on exit (shell scrollback is left intact).
+		// DECSET 1049 also saves/restores cursor position.
+		process.stdout.write("\x1b[?1049h\x1b[H");
+
 		// Enable bracketed paste mode - terminal will wrap pastes in \x1b[200~ ... \x1b[201~
 		process.stdout.write("\x1b[?2004h");
+
+		// Crash safety: if the process exits without stop() being called (uncaught
+		// exception, signal, explicit exit), restore the terminal synchronously so
+		// the user's shell isn't left in alt-screen + raw mode.
+		process.once("exit", this.emergencyRestore);
 
 		// Set up resize handler immediately
 		process.stdout.on("resize", this.resizeHandler);
@@ -304,6 +328,12 @@ export class ProcessTerminal implements Terminal {
 		if (process.stdin.setRawMode) {
 			process.stdin.setRawMode(this.wasRaw);
 		}
+
+		// Leave alternate screen buffer — shell scrollback becomes visible again.
+		process.stdout.write("\x1b[?1049l");
+
+		// stop() ran cleanly — emergency handler no longer needed.
+		process.removeListener("exit", this.emergencyRestore);
 	}
 
 	write(data: string): void {

@@ -65,6 +65,27 @@ export class FooterComponent implements Component {
 	render(width: number): string[] {
 		const state = this.session.state;
 
+		// Lime default: before any turn has produced output, show a minimal
+		// Amp-style footer — thinking level on the left, model id on the right.
+		// The detailed token/cost/pwd footer kicks in only once the
+		// conversation has data to surface.
+		const hasAssistantMessage = this.session.sessionManager
+			.getEntries()
+			.some((e) => e.type === "message" && e.message.role === "assistant");
+		if (!hasAssistantMessage) {
+			const thinking = state.thinkingLevel || "off";
+			const model = state.model?.id || "no-model";
+			const left = theme.fg("dim", `thinking: ${thinking}`);
+			const right = theme.fg("dim", model);
+			// Inset slightly from the screen edges so the footer reads as
+			// indented past the editor's rounded-box left/right walls.
+			const SIDE_MARGIN = 2;
+			const innerWidth = Math.max(0, width - SIDE_MARGIN * 2);
+			const padCount = Math.max(1, innerWidth - visibleWidth(left) - visibleWidth(right));
+			const margin = " ".repeat(SIDE_MARGIN);
+			return [margin + left + " ".repeat(padCount) + right + margin];
+		}
+
 		// Calculate cumulative usage from ALL session entries (not just post-compaction messages)
 		let totalInput = 0;
 		let totalOutput = 0;

@@ -407,9 +407,15 @@ export class Editor implements Component, Focusable {
 	}
 
 	render(width: number): string[] {
-		const maxPadding = Math.max(0, Math.floor((width - 1) / 2));
+		// lime-agent: rounded box editor — top-left `╭`, top-right `╮`,
+		// bottom-left `╰`, bottom-right `╯`, side walls `│`, horizontals `─`.
+		// Colored with the LIME_WHITE_BORDER triple-stack so the border stays
+		// visible across truecolor and 256-color terminals.
+		const maxPadding = Math.max(0, Math.floor((width - 3) / 2));
 		const paddingX = Math.min(this.paddingX, maxPadding);
-		const contentWidth = Math.max(1, width - paddingX * 2);
+		// Inner width between the two side walls.
+		const innerWidth = Math.max(1, width - 2);
+		const contentWidth = Math.max(1, innerWidth - paddingX * 2);
 
 		// Layout width: with padding the cursor can overflow into it,
 		// without padding we reserve 1 column for the cursor.
@@ -419,6 +425,11 @@ export class Editor implements Component, Focusable {
 		this.lastWidth = layoutWidth;
 
 		const horizontal = this.borderColor("─");
+		const vertical = this.borderColor("│");
+		const tl = this.borderColor("╭");
+		const tr = this.borderColor("╮");
+		const bl = this.borderColor("╰");
+		const br = this.borderColor("╯");
 
 		// Layout the text
 		const layoutLines = this.layoutText(layoutWidth);
@@ -449,17 +460,17 @@ export class Editor implements Component, Focusable {
 		const leftPadding = " ".repeat(paddingX);
 		const rightPadding = leftPadding;
 
-		// Render top border (with scroll indicator if scrolled down)
+		// Render top border with rounded corners.
 		if (this.scrollOffset > 0) {
 			const indicator = `─── ↑ ${this.scrollOffset} more `;
-			const remaining = width - visibleWidth(indicator);
+			const remaining = innerWidth - visibleWidth(indicator);
 			if (remaining >= 0) {
-				result.push(this.borderColor(indicator + "─".repeat(remaining)));
+				result.push(tl + this.borderColor(indicator + "─".repeat(remaining)) + tr);
 			} else {
-				result.push(this.borderColor(truncateToWidth(indicator, width)));
+				result.push(tl + this.borderColor(truncateToWidth(indicator, innerWidth)) + tr);
 			}
 		} else {
-			result.push(horizontal.repeat(width));
+			result.push(tl + horizontal.repeat(innerWidth) + tr);
 		}
 
 		// Render each visible layout line
@@ -504,18 +515,27 @@ export class Editor implements Component, Focusable {
 			const padding = " ".repeat(Math.max(0, contentWidth - lineVisibleWidth));
 			const lineRightPadding = cursorInPadding ? rightPadding.slice(1) : rightPadding;
 
-			// Render the line (no side borders, just horizontal lines above and below)
-			result.push(`${leftPadding}${displayText}${padding}${lineRightPadding}`);
+			// Content line with side walls.
+			result.push(`${vertical}${leftPadding}${displayText}${padding}${lineRightPadding}${vertical}`);
 		}
 
-		// Render bottom border (with scroll indicator if more content below)
+		// Minimum content height: pad with empty lines so even an empty editor
+		// has some vertical weight (matches Amp's chunky input feel).
+		const MIN_CONTENT_LINES = 3;
+		const blankContent = " ".repeat(innerWidth);
+		const blankLine = `${vertical}${blankContent}${vertical}`;
+		while (result.length - 1 < MIN_CONTENT_LINES) {
+			result.push(blankLine);
+		}
+
+		// Render bottom border with rounded corners.
 		const linesBelow = layoutLines.length - (this.scrollOffset + visibleLines.length);
 		if (linesBelow > 0) {
 			const indicator = `─── ↓ ${linesBelow} more `;
-			const remaining = width - visibleWidth(indicator);
-			result.push(this.borderColor(indicator + "─".repeat(Math.max(0, remaining))));
+			const remaining = innerWidth - visibleWidth(indicator);
+			result.push(bl + this.borderColor(indicator + "─".repeat(Math.max(0, remaining))) + br);
 		} else {
-			result.push(horizontal.repeat(width));
+			result.push(bl + horizontal.repeat(innerWidth) + br);
 		}
 
 		// Add autocomplete list if active

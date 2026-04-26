@@ -416,30 +416,26 @@ export class Theme {
 		return this.mode;
 	}
 
-	getThinkingBorderColor(level: "off" | "minimal" | "low" | "medium" | "high" | "xhigh"): (str: string) => string {
-		// Map thinking levels to dedicated theme colors
-		switch (level) {
-			case "off":
-				return (str: string) => this.fg("thinkingOff", str);
-			case "minimal":
-				return (str: string) => this.fg("thinkingMinimal", str);
-			case "low":
-				return (str: string) => this.fg("thinkingLow", str);
-			case "medium":
-				return (str: string) => this.fg("thinkingMedium", str);
-			case "high":
-				return (str: string) => this.fg("thinkingHigh", str);
-			case "xhigh":
-				return (str: string) => this.fg("thinkingXhigh", str);
-			default:
-				return (str: string) => this.fg("thinkingOff", str);
-		}
+	getThinkingBorderColor(_level: "off" | "minimal" | "low" | "medium" | "high" | "xhigh"): (str: string) => string {
+		// lime-agent: keep the editor border white regardless of thinking level.
+		// Signalling thinking mode via border tint fights the Amp aesthetic —
+		// status-line / footer is a better place for that if we want it later.
+		return LIME_WHITE_BORDER;
 	}
 
 	getBashModeBorderColor(): (str: string) => string {
-		return (str: string) => this.fg("bashMode", str);
+		// lime-agent: bash mode (`!` prefix) keeps the white border too.
+		return LIME_WHITE_BORDER;
 	}
 }
+
+// Shared hardcoded white wrapper used by every editor border. Combines three
+// layers so it shows up on *every* terminal:
+//   • SGR 1   → bold (most palettes brighten bold white vs normal white)
+//   • SGR 97  → bright white (8-bit palette, universally supported)
+//   • SGR 38;2;… → truecolor near-white, used where supported to override any
+//     palette that maps 97 to a dim grey
+const LIME_WHITE_BORDER = (str: string) => `\x1b[1;97;38;2;220;220;220m${str}\x1b[22;39m`;
 
 // ============================================================================
 // Theme Loading
@@ -1124,8 +1120,10 @@ export function getSelectListTheme(): SelectListTheme {
 }
 
 export function getEditorTheme(): EditorTheme {
+	// lime-agent: hardcoded bright white for the input box border, matched
+	// with the thinking/bash-mode functions above so the colour never shifts.
 	return {
-		borderColor: (text: string) => theme.fg("borderMuted", text),
+		borderColor: LIME_WHITE_BORDER,
 		selectList: getSelectListTheme(),
 	};
 }
