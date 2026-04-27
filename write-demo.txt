@@ -1,0 +1,3 @@
+This file was created using the write tool.
+It can create or overwrite files.
+It automatically creates parent directories if needed.
