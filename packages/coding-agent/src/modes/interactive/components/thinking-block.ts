@@ -1,6 +1,6 @@
 import { Container, Markdown, type MarkdownTheme, Text } from "@mariozechner/pi-tui";
-import { theme } from "../theme/theme.js";
 import { clickTargetMarker, registerClickTarget } from "../mouse-selection.js";
+import { theme } from "../theme/theme.js";
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 const FRAME_INTERVAL_MS = 80;

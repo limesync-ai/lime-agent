@@ -180,12 +180,14 @@ function graphemeWidth(segment: string): number {
 
 	let width = eastAsianWidth(cp);
 
-	// Trailing halfwidth/fullwidth forms
+	// Trailing halfwidth/fullwidth forms and AM vowels that segment with a base.
 	if (segment.length > 1) {
 		for (const char of segment.slice(1)) {
 			const c = char.codePointAt(0)!;
 			if (c >= 0xff00 && c <= 0xffef) {
 				width += eastAsianWidth(c);
+			} else if (c === 0x0e33 || c === 0x0eb3) {
+				width += 1;
 			}
 		}
 	}
@@ -254,6 +256,20 @@ export function visibleWidth(str: string): number {
 }
 
 /**
+ * Normalize text for terminal output without changing logical editor content.
+ * Some terminals render precomposed Thai/Lao AM vowels inconsistently during
+ * differential repaint. Their compatibility decompositions have the same cell
+ * width but avoid stale-cell artifacts in terminal renderers.
+ */
+const THAI_LAO_AM_REGEX = /[\u0e33\u0eb3]/;
+const THAI_LAO_AM_GLOBAL_REGEX = /[\u0e33\u0eb3]/g;
+
+export function normalizeTerminalOutput(str: string): string {
+	if (!THAI_LAO_AM_REGEX.test(str)) return str;
+	return str.replace(THAI_LAO_AM_GLOBAL_REGEX, (char) => (char === "\u0e33" ? "\u0e4d\u0e32" : "\u0ecd\u0eb2"));
+}
+
+/**
  * Extract ANSI escape sequences from a string at the given position.
  */
 export function extractAnsiCode(str: string, pos: number): { code: string; length: number } | null {
@@ -294,6 +310,43 @@ export function extractAnsiCode(str: string, pos: number): { code: string; lengt
 	}
 
 	return null;
+}
+
+export const NO_SELECT_LINE_PREFIX = "\x1b]9999;NSL\x07";
+export const NO_SELECT_ZONE_OPEN = "\x1b]9999;NSO\x07";
+export const NO_SELECT_ZONE_CLOSE = "\x1b]9999;NSC\x07";
+
+export type LineCellEvent =
+	| { type: "ansi"; code: string }
+	| { type: "grapheme"; grapheme: string; col: number; width: number };
+
+export function walkLineCells(line: string, visit: (event: LineCellEvent) => void): void {
+	let index = 0;
+	let col = 0;
+
+	while (index < line.length) {
+		const ansi = extractAnsiCode(line, index);
+		if (ansi) {
+			visit({ type: "ansi", code: ansi.code });
+			index += ansi.length;
+			continue;
+		}
+
+		const nextAnsi = line.indexOf("\x1b", index);
+		const plainEnd = nextAnsi === -1 ? line.length : nextAnsi;
+		const plain = line.slice(index, plainEnd);
+		for (const { segment } of segmenter.segment(plain)) {
+			const width = graphemeWidth(segment);
+			visit({ type: "grapheme", grapheme: segment, col, width });
+			col += width;
+		}
+		index = plainEnd;
+
+		if (index < line.length && line[index] === "\x1b" && !extractAnsiCode(line, index)) {
+			visit({ type: "grapheme", grapheme: "\x1b", col, width: 0 });
+			index += 1;
+		}
+	}
 }
 
 /**

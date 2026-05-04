@@ -34,8 +34,7 @@ export class ModalFrame implements Component {
 	) {
 		const editorTheme = getEditorTheme();
 		this.borderColor = editorTheme.borderColor;
-		this.headerTextColor =
-			editorTheme.paletteTitleColor ?? editorTheme.headerTextColor ?? editorTheme.borderColor;
+		this.headerTextColor = editorTheme.borderColor;
 	}
 
 	invalidate(): void {
@@ -75,9 +74,7 @@ export class ModalFrame implements Component {
 
 		for (const line of innerLines) {
 			if (isHorizontalRule(line)) {
-				out.push(
-					this.borderColor("├") + this.borderColor("─".repeat(innerWidth)) + this.borderColor("┤"),
-				);
+				out.push(this.borderColor("├") + this.borderColor("─".repeat(innerWidth)) + this.borderColor("┤"));
 				continue;
 			}
 			const lineW = visibleWidth(line);

@@ -57,6 +57,8 @@ export {
 	parseKey,
 	setKittyProtocolActive,
 } from "./keys.js";
+// Mouse input handling
+export { type ParsedMouseEvent, parseMouseEvent } from "./mouse.js";
 // Input buffering for batch splitting
 export { StdinBuffer, type StdinBufferEventMap, type StdinBufferOptions } from "./stdin-buffer.js";
 // Terminal interface and implementations
@@ -103,4 +105,13 @@ export {
 	TUI,
 } from "./tui.js";
 // Utilities
-export { truncateToWidth, visibleWidth, wrapTextWithAnsi } from "./utils.js";
+export {
+	type LineCellEvent,
+	NO_SELECT_LINE_PREFIX,
+	NO_SELECT_ZONE_CLOSE,
+	NO_SELECT_ZONE_OPEN,
+	truncateToWidth,
+	visibleWidth,
+	walkLineCells,
+	wrapTextWithAnsi,
+} from "./utils.js";

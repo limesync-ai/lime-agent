@@ -9,7 +9,7 @@ import { performance } from "node:perf_hooks";
 import { isKeyRelease, matchesKey } from "./keys.js";
 import type { Terminal } from "./terminal.js";
 import { getCapabilities, isImageLine, setCellDimensions } from "./terminal-image.js";
-import { extractSegments, sliceByColumn, sliceWithWidth, visibleWidth } from "./utils.js";
+import { extractSegments, normalizeTerminalOutput, sliceByColumn, sliceWithWidth, visibleWidth } from "./utils.js";
 
 /**
  * Component interface - all components must implement this
@@ -42,6 +42,7 @@ export interface Component {
 
 type InputListenerResult = { consume?: boolean; data?: string } | undefined;
 type InputListener = (data: string) => InputListenerResult;
+type RenderInterceptor = (lines: string[], width: number, height: number) => string[];
 
 /**
  * Interface for components that can receive focus and display a hardware cursor.
@@ -172,6 +173,13 @@ export interface OverlayHandle {
 	isFocused(): boolean;
 }
 
+export interface OverlayPosition {
+	row: number;
+	col: number;
+	width: number;
+	height: number;
+}
+
 /**
  * Container - a component that contains other components
  */
@@ -221,6 +229,7 @@ export class TUI extends Container {
 	private previousHeight = 0;
 	private focusedComponent: Component | null = null;
 	private inputListeners = new Set<InputListener>();
+	private renderInterceptor: RenderInterceptor | undefined;
 
 	/** Global callback for debug key (Shift+Ctrl+D). Called before input is forwarded to focused component. */
 	public onDebug?: () => void;
@@ -435,6 +444,20 @@ export class TUI extends Container {
 
 	removeInputListener(listener: InputListener): void {
 		this.inputListeners.delete(listener);
+	}
+
+	setRenderInterceptor(interceptor: RenderInterceptor | undefined): void {
+		this.renderInterceptor = interceptor;
+		this.requestRender();
+	}
+
+	scrollViewport(deltaRows: number): void {
+		if (deltaRows === 0) return;
+		if (deltaRows > 0) {
+			this.terminal.write(`\x1b[${deltaRows}S`);
+		} else {
+			this.terminal.write(`\x1b[${-deltaRows}T`);
+		}
 	}
 
 	private queryCellSize(): void {
@@ -731,6 +754,23 @@ export class TUI extends Container {
 		}
 	}
 
+	getOverlayPosition(component: Component): OverlayPosition | undefined {
+		const entry = this.overlayStack.find(
+			(overlay) => overlay.component === component && this.isOverlayVisible(overlay),
+		);
+		if (!entry) return undefined;
+
+		const termWidth = this.terminal.columns;
+		const termHeight = this.terminal.rows;
+		const { width, maxHeight } = this.resolveOverlayLayout(entry.options, 0, termWidth, termHeight);
+		let overlayLines = component.render(width);
+		if (maxHeight !== undefined && overlayLines.length > maxHeight) {
+			overlayLines = overlayLines.slice(0, maxHeight);
+		}
+		const { row, col } = this.resolveOverlayLayout(entry.options, overlayLines.length, termWidth, termHeight);
+		return { row, col, width, height: overlayLines.length };
+	}
+
 	/** Composite all overlays into content lines (sorted by focusOrder, higher = on top). */
 	private compositeOverlays(lines: string[], termWidth: number, termHeight: number): string[] {
 		if (this.overlayStack.length === 0) return lines;
@@ -800,7 +840,7 @@ export class TUI extends Container {
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
 			if (!isImageLine(line)) {
-				lines[i] = line + reset;
+				lines[i] = normalizeTerminalOutput(line) + reset;
 			}
 		}
 		return lines;
@@ -907,6 +947,10 @@ export class TUI extends Container {
 		// Composite overlays into the rendered lines (before differential compare)
 		if (this.overlayStack.length > 0) {
 			newLines = this.compositeOverlays(newLines, width, height);
+		}
+
+		if (this.renderInterceptor) {
+			newLines = this.renderInterceptor(newLines, width, height);
 		}
 
 		// Extract cursor position before applying line resets (marker must be found first)
