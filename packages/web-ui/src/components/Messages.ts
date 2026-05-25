@@ -59,8 +59,8 @@ export class UserMessage extends LitElement {
 				: this.message.content.find((c) => c.type === "text")?.text || "";
 
 		return html`
-			<div class="flex justify-start mx-4">
-				<div class="user-message-container py-2 px-4 rounded-xl">
+			<div class="flex justify-end px-4">
+				<div class="user-message-container py-2.5 px-4 rounded-2xl text-sm leading-relaxed">
 					<markdown-block .content=${content}></markdown-block>
 					${
 						this.message.role === "user-with-attachments" &&
@@ -139,19 +139,19 @@ export class AssistantMessage extends LitElement {
 		}
 
 		return html`
-			<div>
-				${orderedParts.length ? html` <div class="px-4 flex flex-col gap-3">${orderedParts}</div> ` : ""}
+			<div class="assistant-message-container px-4">
+				${orderedParts.length ? html` <div class="flex flex-col gap-3">${orderedParts}</div> ` : ""}
 				${
 					this.message.usage && !this.isStreaming
 						? this.onCostClick
-							? html` <div class="px-4 mt-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors" @click=${this.onCostClick}>${formatUsage(this.message.usage)}</div> `
-							: html` <div class="px-4 mt-2 text-xs text-muted-foreground">${formatUsage(this.message.usage)}</div> `
+							? html` <div class="mt-2 text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors" @click=${this.onCostClick}>${formatUsage(this.message.usage)}</div> `
+							: html` <div class="mt-2 text-xs text-muted-foreground">${formatUsage(this.message.usage)}</div> `
 						: ""
 				}
 				${
 					this.message.stopReason === "error" && this.message.errorMessage
 						? html`
-							<div class="mx-4 mt-3 p-3 bg-destructive/10 text-destructive rounded-lg text-sm overflow-hidden">
+							<div class="mt-3 p-3 bg-destructive/10 text-destructive rounded-lg text-sm overflow-hidden">
 								<strong>${i18n("Error:")}</strong> ${this.message.errorMessage}
 							</div>
 						`

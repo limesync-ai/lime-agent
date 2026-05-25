@@ -85,7 +85,10 @@ export function buildLimeSplashLines(termWidth: number): string[] {
  * timers — just the mascot + welcome text, rendered once on every re-layout.
  */
 export class LimeSplashHeader implements Component {
+	constructor(private readonly visible: () => boolean = () => true) {}
+
 	render(width: number): string[] {
+		if (!this.visible()) return [];
 		return buildSplashFrame(width);
 	}
 

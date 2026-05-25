@@ -31,6 +31,7 @@
 			"packages/web-ui/src/**/*.ts",
 			"packages/web-ui/example/**/*.ts",
 			"!**/node_modules/**/*",
+			"!pi-ask/**/*",
 			"!**/test-sessions.ts",
 			"!**/models.generated.ts",
 			"!!pi-processes",

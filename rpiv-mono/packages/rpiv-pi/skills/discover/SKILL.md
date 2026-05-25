@@ -153,7 +153,7 @@ Present the generated questions to the developer for review.
    <full question text for each, numbered to match>
    ```
 
-2. **Ask for review** using the `ask_user_question` tool with the following question: "[N] trace-quality research questions generated from discovery across [M] files. Review and adjust?". Header: "Questions". Options: "Looks good (Recommended)" (Proceed to write the questions artifact as-is); "I want to adjust" (Add, remove, or modify questions before proceeding).
+2. **Ask for review** using the `ask_user` tool with the following question: "[N] trace-quality research questions generated from discovery across [M] files. Review and adjust?". Header: "Questions". Options: "Looks good (Recommended)" (Proceed to write the questions artifact as-is); "I want to adjust" (Add, remove, or modify questions before proceeding).
 
 3. **Handle developer input:**
 

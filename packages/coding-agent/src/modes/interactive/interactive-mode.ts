@@ -117,6 +117,7 @@ import { TreeSelectorComponent } from "./components/tree-selector.js";
 import { UserMessageComponent } from "./components/user-message.js";
 import { UserMessageSelectorComponent } from "./components/user-message-selector.js";
 import { LimeSplashHeader, LimeTabsWidget } from "./lime-splash.js";
+import { MouseSelection } from "./mouse-selection.js";
 import {
 	getAvailableThemes,
 	getAvailableThemesWithPaths,
@@ -318,6 +319,14 @@ export class InteractiveMode {
 	private extensionWidgetsBelow = new Map<string, Component & { dispose?(): void }>();
 	private widgetContainerAbove!: Container;
 	private widgetContainerBelow!: Container;
+	private readonly mouseSelection = new MouseSelection({
+		onWheel: (deltaRows) => this.scrollTranscript(deltaRows),
+		transformRender: (lines, width, height) => this.applyTranscriptViewport(lines, width, height),
+	});
+	private transcriptScrollOffset = 0;
+	private transcriptMaxScrollOffset = 0;
+	private lastTranscriptLineCount = 0;
+	private splashHidden = false;
 
 	// Custom footer from extension (undefined = use built-in footer)
 	private customFooter: (Component & { dispose?(): void }) | undefined = undefined;
@@ -419,6 +428,82 @@ export class InteractiveMode {
 			return description;
 		}
 		return description ? `[${sourceTag}] ${description}` : `[${sourceTag}]`;
+	}
+
+	private getFixedBottomRows(width: number): number {
+		const footerComponent = this.customFooter ?? this.footer;
+		return (
+			this.widgetContainerAbove.render(width).length +
+			this.editorContainer.render(width).length +
+			this.widgetContainerBelow.render(width).length +
+			footerComponent.render(width).length
+		);
+	}
+
+	private getFixedTopRows(width: number): number {
+		return this.headerContainer.render(width).length;
+	}
+
+	private applyTranscriptViewport(lines: string[], width: number, height: number): string[] {
+		const fixedTopRows = Math.min(height, this.getFixedTopRows(width));
+		const fixedBottomRows = Math.min(height, this.getFixedBottomRows(width));
+		const transcriptViewportHeight = Math.max(0, height - fixedTopRows - fixedBottomRows);
+		if (transcriptViewportHeight === 0) {
+			this.transcriptScrollOffset = 0;
+			this.transcriptMaxScrollOffset = 0;
+			this.lastTranscriptLineCount = 0;
+			return lines.slice(-height);
+		}
+
+		const transcriptStart = Math.min(fixedTopRows, lines.length);
+		const transcriptEnd = Math.max(transcriptStart, lines.length - fixedBottomRows);
+		const fixedTopLines = lines.slice(0, transcriptStart);
+		const transcriptLines = lines.slice(transcriptStart, transcriptEnd);
+		const fixedBottomLines = lines.slice(transcriptEnd);
+		const lineCountDelta = transcriptLines.length - this.lastTranscriptLineCount;
+		if (lineCountDelta > 0 && this.transcriptScrollOffset > 0) {
+			this.transcriptScrollOffset += lineCountDelta;
+		}
+		this.lastTranscriptLineCount = transcriptLines.length;
+
+		this.transcriptMaxScrollOffset = Math.max(0, transcriptLines.length - transcriptViewportHeight);
+		this.transcriptScrollOffset = Math.max(0, Math.min(this.transcriptScrollOffset, this.transcriptMaxScrollOffset));
+
+		const visibleEnd = transcriptLines.length - this.transcriptScrollOffset;
+		const visibleStart = Math.max(0, visibleEnd - transcriptViewportHeight);
+		const visibleTranscriptLines = transcriptLines.slice(visibleStart, visibleEnd);
+		const fillerRows = Math.max(0, transcriptViewportHeight - visibleTranscriptLines.length);
+		return [
+			...fixedTopLines,
+			...Array.from({ length: fillerRows }, () => ""),
+			...visibleTranscriptLines,
+			...fixedBottomLines,
+		];
+	}
+
+	private scrollTranscript(deltaRows: number): void {
+		if (this.transcriptMaxScrollOffset <= 0) return;
+		const nextOffset = Math.max(0, Math.min(this.transcriptScrollOffset + deltaRows, this.transcriptMaxScrollOffset));
+		if (nextOffset === this.transcriptScrollOffset) return;
+		this.transcriptScrollOffset = nextOffset;
+		this.ui.requestRender(true);
+	}
+
+	private resetTranscriptScroll(): void {
+		this.transcriptScrollOffset = 0;
+		this.transcriptMaxScrollOffset = 0;
+		this.lastTranscriptLineCount = 0;
+	}
+
+	private resetSplash(): void {
+		this.splashHidden = false;
+	}
+
+	private hideSplash(): void {
+		if (this.splashHidden) return;
+		this.splashHidden = true;
+		this.resetTranscriptScroll();
+		this.ui.requestRender(true);
 	}
 
 	private getBuiltInCommandConflictDiagnostics(extensionRunner: ExtensionRunner): ResourceDiagnostic[] {
@@ -575,7 +660,7 @@ export class InteractiveMode {
 		// Lime default header: Amp-style centered splash, procedurally animated.
 		// The original keybinding-hint header is unused in lime-agent;
 		// quietStartup still governs the loaded-resources listing further down.
-		this.builtInHeader = new LimeSplashHeader();
+		this.builtInHeader = new LimeSplashHeader(() => !this.splashHidden);
 		this.headerContainer.addChild(this.builtInHeader);
 
 		// Default tab strip floating above the editor (rush / 53-skills).
@@ -596,6 +681,7 @@ export class InteractiveMode {
 
 		// Start the UI before initializing extensions so session_start handlers can use interactive dialogs
 		this.ui.start();
+		this.mouseSelection.enable(this.ui);
 		this.isInitialized = true;
 
 		// Initialize extensions first so resources are shown before messages
@@ -643,14 +729,15 @@ export class InteractiveMode {
 		// Start version check asynchronously
 		checkForNewPiVersion(this.version).then((newVersion) => {
 			if (newVersion) {
-				this.showNewVersionNotification(newVersion);
+				// Keep the Amp-style transcript clean. Update notices are useful,
+				// but they should not be appended into the chat history area.
 			}
 		});
 
 		// Start package update check asynchronously
 		this.checkForPackageUpdates().then((updates) => {
 			if (updates.length > 0) {
-				this.showPackageUpdateNotification(updates);
+				// Keep package update notices out of the main chat transcript.
 			}
 		});
 
@@ -1489,7 +1576,7 @@ export class InteractiveMode {
 
 		const extensionRunner = this.session.extensionRunner;
 		this.setupExtensionShortcuts(extensionRunner);
-		this.showLoadedResources({ force: false, showDiagnosticsWhenQuiet: true });
+		this.showLoadedResources({ force: false });
 		this.showStartupNoticesIfNeeded();
 	}
 
@@ -1530,6 +1617,8 @@ export class InteractiveMode {
 	}
 
 	private renderCurrentSessionState(): void {
+		this.resetSplash();
+		this.resetTranscriptScroll();
 		this.chatContainer.clear();
 		this.pendingMessagesContainer.clear();
 		this.compactionQueuedMessages = [];
@@ -2301,6 +2390,11 @@ export class InteractiveMode {
 		// Set up handlers on defaultEditor - they use this.editor for text access
 		// so they work correctly regardless of which editor is active
 		this.defaultEditor.onEscape = () => {
+			this.session.resourceLoader.getExtensions().eventBus?.emit("interactive:interrupt", {
+				source: "escape",
+				timestamp: Date.now(),
+			});
+
 			if (this.session.isStreaming) {
 				this.restoreQueuedMessagesToEditor({ abort: true });
 			} else if (this.session.isBashRunning) {
@@ -2987,6 +3081,7 @@ export class InteractiveMode {
 			case "user": {
 				const textContent = this.getUserMessageText(message);
 				if (textContent) {
+					this.hideSplash();
 					if (this.chatContainer.children.length > 0) {
 						this.chatContainer.addChild(new Spacer(1));
 					}
@@ -3111,6 +3206,8 @@ export class InteractiveMode {
 	}
 
 	renderInitialMessages(): void {
+		this.resetSplash();
+		this.resetTranscriptScroll();
 		// Get aligned messages and entries from session context
 		const context = this.sessionManager.buildSessionContext();
 		this.renderSessionContext(context, {
@@ -3137,6 +3234,8 @@ export class InteractiveMode {
 	}
 
 	private rebuildChatFromMessages(): void {
+		this.resetSplash();
+		this.resetTranscriptScroll();
 		this.chatContainer.clear();
 		const context = this.sessionManager.buildSessionContext();
 		this.renderSessionContext(context);
@@ -3259,11 +3358,13 @@ export class InteractiveMode {
 			clearInterval(suspendKeepAlive);
 			process.removeListener("SIGINT", ignoreSigint);
 			this.ui.start();
+			this.mouseSelection.enable(this.ui);
 			this.ui.requestRender(true);
 		});
 
 		try {
 			// Stop the TUI (restore terminal to normal mode)
+			this.mouseSelection.disable();
 			this.ui.stop();
 
 			// Send SIGTSTP to process group (pid=0 means all processes in group)
@@ -4757,10 +4858,7 @@ export class InteractiveMode {
 			this.setupExtensionShortcuts(runner);
 			this.rebuildChatFromMessages();
 			dismissReloadBox(this.editor as Component);
-			this.showLoadedResources({
-				force: false,
-				showDiagnosticsWhenQuiet: true,
-			});
+			this.showLoadedResources({ force: false });
 			const modelsJsonError = this.session.modelRegistry.getError();
 			if (modelsJsonError) {
 				this.showError(`models.json error: ${modelsJsonError}`);
@@ -5400,6 +5498,7 @@ export class InteractiveMode {
 			this.unsubscribe();
 		}
 		if (this.isInitialized) {
+			this.mouseSelection.disable();
 			this.ui.stop();
 			this.isInitialized = false;
 		}

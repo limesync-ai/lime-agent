@@ -51,12 +51,14 @@ export interface LsToolOptions {
 function formatLsCall(
 	args: { path?: string; limit?: number } | undefined,
 	theme: typeof import("../../modes/interactive/theme/theme.js").theme,
+	isPartial: boolean,
+	isError: boolean,
 ): string {
 	const rawPath = str(args?.path);
 	const path = rawPath !== null ? shortenPath(rawPath || ".") : null;
 	const limit = args?.limit;
 	const invalidArg = invalidArgText(theme);
-	let text = `${theme.fg("toolTitle", theme.bold("ls"))} ${path === null ? invalidArg : theme.fg("accent", path)}`;
+	let text = `${isError ? theme.fg("error", "✗") : isPartial ? theme.fg("muted", "…") : theme.fg("success", "✓")} ${theme.fg("toolTitle", isPartial ? "Listing" : "Listed")} ${path === null ? invalidArg : theme.fg("toolPath", path)}`;
 	if (limit !== undefined) {
 		text += theme.fg("toolOutput", ` (limit ${limit})`);
 	}
@@ -107,6 +109,7 @@ export function createLsToolDefinition(
 		description: `List directory contents. Returns entries sorted alphabetically, with '/' suffix for directories. Includes dotfiles. Output is truncated to ${DEFAULT_LIMIT} entries or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first).`,
 		promptSnippet: "List directory contents",
 		parameters: lsSchema,
+		renderShell: "self",
 		async execute(
 			_toolCallId,
 			{ path, limit }: { path?: string; limit?: number },
@@ -213,7 +216,7 @@ export function createLsToolDefinition(
 		},
 		renderCall(args, theme, context) {
 			const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-			text.setText(formatLsCall(args, theme));
+			text.setText(formatLsCall(args, theme, context.isPartial, context.isError));
 			return text;
 		},
 		renderResult(result, options, theme, context) {

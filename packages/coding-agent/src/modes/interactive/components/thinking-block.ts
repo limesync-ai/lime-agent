@@ -102,7 +102,7 @@ export class ThinkingBlock extends Container {
 		const icon = theme.fg("thinkingText", glyph);
 		const label = theme.italic(theme.fg("thinkingText", "Thinking"));
 		const chev = theme.fg("thinkingText", chevron);
-		this.headerText.setText(`${clickTargetMarker(this.id)}${icon} ${label} ${chev}`);
+		this.headerText.setText(`${clickTargetMarker(this.id)} ${icon} ${label} ${chev}`);
 	}
 
 	private refreshContent(): void {

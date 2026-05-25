@@ -141,7 +141,7 @@ type EditCallRenderComponent = Box & {
 };
 
 function createEditCallRenderComponent(): EditCallRenderComponent {
-	return Object.assign(new Box(1, 1, (text: string) => text), {
+	return Object.assign(new Box(0, 0, (text: string) => text), {
 		preview: undefined as EditPreview | undefined,
 		previewArgsKey: undefined as string | undefined,
 		previewPending: false,
@@ -191,12 +191,38 @@ function getRenderablePreviewInput(args: RenderableEditArgs | undefined): { path
 function formatEditCall(
 	args: RenderableEditArgs | undefined,
 	theme: typeof import("../../modes/interactive/theme/theme.js").theme,
+	preview: EditPreview | undefined,
+	settledError: boolean | undefined,
 ): string {
 	const invalidArg = invalidArgText(theme);
 	const rawPath = str(args?.file_path ?? args?.path);
 	const path = rawPath !== null ? shortenPath(rawPath) : null;
-	const pathDisplay = path === null ? invalidArg : path ? theme.fg("accent", path) : theme.fg("toolOutput", "...");
-	return `${theme.fg("toolTitle", theme.bold("edit"))} ${pathDisplay}`;
+	const pathDisplay = path === null ? invalidArg : path ? theme.fg("toolPath", path) : theme.fg("toolOutput", "...");
+	if (settledError || (preview && "error" in preview)) {
+		return `${theme.fg("error", "✗")} ${theme.fg("toolTitle", "Edit")} ${pathDisplay}`;
+	}
+	if (preview && !("error" in preview)) {
+		const counts = countDiffChanges(preview.diff);
+		return [
+			theme.fg("success", "✓"),
+			theme.fg("toolTitle", "Edited"),
+			pathDisplay,
+			theme.fg("success", `+${counts.added}`),
+			theme.fg("error", `-${counts.removed}`),
+			theme.fg("muted", "▾"),
+		].join(" ");
+	}
+	return `${theme.fg("muted", "…")} ${theme.fg("toolTitle", "Editing")} ${pathDisplay}`;
+}
+
+function countDiffChanges(diff: string): { added: number; removed: number } {
+	let added = 0;
+	let removed = 0;
+	for (const line of diff.split("\n")) {
+		if (/^\+\s*\d+\s/.test(line)) added++;
+		else if (/^-\s*\d+\s/.test(line)) removed++;
+	}
+	return { added, removed };
 }
 
 function formatEditResult(
@@ -228,31 +254,14 @@ function formatEditResult(
 	return undefined;
 }
 
-function getEditHeaderBg(
-	preview: EditPreview | undefined,
-	settledError: boolean | undefined,
-	theme: typeof import("../../modes/interactive/theme/theme.js").theme,
-): (text: string) => string {
-	if (preview) {
-		if ("error" in preview) {
-			return (text: string) => theme.bg("toolErrorBg", text);
-		}
-		return (text: string) => theme.bg("toolSuccessBg", text);
-	}
-	if (settledError) {
-		return (text: string) => theme.bg("toolErrorBg", text);
-	}
-	return (text: string) => theme.bg("toolPendingBg", text);
-}
-
 function buildEditCallComponent(
 	component: EditCallRenderComponent,
 	args: RenderableEditArgs | undefined,
 	theme: typeof import("../../modes/interactive/theme/theme.js").theme,
 ): EditCallRenderComponent {
-	component.setBgFn(getEditHeaderBg(component.preview, component.settledError, theme));
+	component.setBgFn(undefined);
 	component.clear();
-	component.addChild(new Text(formatEditCall(args, theme), 0, 0));
+	component.addChild(new Text(formatEditCall(args, theme, component.preview, component.settledError), 0, 0));
 
 	if (!component.preview) {
 		return component;
@@ -261,7 +270,7 @@ function buildEditCallComponent(
 	const body =
 		"error" in component.preview ? theme.fg("error", component.preview.error) : renderDiff(component.preview.diff);
 	component.addChild(new Spacer(1));
-	component.addChild(new Text(body, 0, 0));
+	component.addChild(new Text(body, 3, 0));
 	return component;
 }
 
@@ -478,7 +487,7 @@ export function createEditToolDefinition(
 				return component;
 			}
 			component.addChild(new Spacer(1));
-			component.addChild(new Text(output, 1, 0));
+			component.addChild(new Text(output, 3, 0));
 			return component;
 		},
 	};

@@ -132,12 +132,12 @@ Ask grounded questions one at a time before presenting the feature list. Use a *
 
 **Choosing question format:**
 
-- **`ask_user_question` tool** — when your question has 2-4 concrete options from code analysis (pattern conflicts, integration choices, scope boundaries, priority overrides). The user can always pick "Other" for free-text. Example: Use the `ask_user_question` tool with the question "Found 2 mapping approaches — which should new code follow?". Options: "Manual mapping (Recommended)" (Used in OrderService (src/services/OrderService.ts:45) — 8 occurrences); "AutoMapper" (Used in UserService (src/services/UserService.ts:12) — 2 occurrences).
+- **`ask_user` tool** — when your question has 2-4 concrete options from code analysis (pattern conflicts, integration choices, scope boundaries, priority overrides). The user can always pick "Other" for free-text. Example: Use the `ask_user` tool with the question "Found 2 mapping approaches — which should new code follow?". Options: "Manual mapping (Recommended)" (Used in OrderService (src/services/OrderService.ts:45) — 8 occurrences); "AutoMapper" (Used in UserService (src/services/UserService.ts:12) — 2 occurrences).
 
 - **Free-text with ❓ Question: prefix** — when the question is open-ended and options can't be predicted (discovery, "what am I missing?", corrections). Example:
   "❓ Question: Integration scanner found no background job registration for this area. Is that expected, or is there async processing I'm not seeing?"
 
-**Batching**: When you have 2-4 independent questions (answers don't depend on each other), you MAY batch them in a single `ask_user_question` call. Keep dependent questions sequential.
+**Batching**: When you have 2-4 independent questions (answers don't depend on each other), you MAY batch them in a single `ask_user` call. Keep dependent questions sequential.
 
 **Classify each response and track for persistence:**
 
@@ -182,7 +182,7 @@ Total backend endpoints: ~[N] across [M] controllers
 Create outline for [total] features?
 ```
 
-Use the `ask_user_question` tool with the following question: "Create outline for [total] features across [N] portals?". Options: "Create outline (Recommended)" (Write _meta.md files and folder structure for all features above); "Add or remove features" (Adjust the feature list before creating); "Reclassify" (Move backend-only endpoints into the main feature list or vice versa).
+Use the `ask_user` tool with the following question: "Create outline for [total] features across [N] portals?". Options: "Create outline (Recommended)" (Write _meta.md files and folder structure for all features above); "Add or remove features" (Adjust the feature list before creating); "Reclassify" (Move backend-only endpoints into the main feature list or vice versa).
 
 Handle any final additions, removals, reclassifications, or slug/module overrides.
 
@@ -215,13 +215,13 @@ Previous decisions:
 
 ```
 
-Use the `ask_user_question` tool with the following question: "[N] unchanged, [M] new, [K] removed features. Apply updates?". Options: "Apply updates (Recommended)" (Update _meta.md files and create new feature folders); "Adjust changes" (Modify the proposed new/removed/changed features); "Re-run discovery" (Something looks wrong — re-scan the codebase).
+Use the `ask_user` tool with the following question: "[N] unchanged, [M] new, [K] removed features. Apply updates?". Options: "Apply updates (Recommended)" (Update _meta.md files and create new feature folders); "Adjust changes" (Modify the proposed new/removed/changed features); "Re-run discovery" (Something looks wrong — re-scan the codebase).
 
 Rephrase each Q&A pair into a concise decision statement (e.g., `**Q:** "Is the bulk-import capability tested separately?" **A:** "No, internal only"` becomes `"Bulk-import — internal only, excluded from scope"`).
 
 **If no changes detected** (all features unchanged):
 - Present the unchanged list and previous decisions
-- Use the `ask_user_question` tool with the following question: "No changes detected since [date]. Still accurate?". Options: "Confirmed" (Outline is still accurate — no updates needed); "Force re-scan" (Re-run discovery anyway to verify).
+- Use the `ask_user` tool with the following question: "No changes detected since [date]. Still accurate?". Options: "Confirmed" (Outline is still accurate — no updates needed); "Force re-scan" (Re-run discovery anyway to verify).
 
 **For new/changed/removed features**, ask grounded questions ONE at a time (same approach as Fresh mode) targeting only the differences. Unchanged features need only batch confirmation.
 

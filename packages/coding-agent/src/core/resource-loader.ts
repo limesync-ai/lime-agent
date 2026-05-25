@@ -234,7 +234,12 @@ export class DefaultResourceLoader implements ResourceLoader {
 		this.systemPromptOverride = options.systemPromptOverride;
 		this.appendSystemPromptOverride = options.appendSystemPromptOverride;
 
-		this.extensionsResult = { extensions: [], errors: [], runtime: createExtensionRuntime() };
+		this.extensionsResult = {
+			extensions: [],
+			errors: [],
+			runtime: createExtensionRuntime(),
+			eventBus: this.eventBus,
+		};
 		this.skills = [];
 		this.skillDiagnostics = [];
 		this.prompts = [];

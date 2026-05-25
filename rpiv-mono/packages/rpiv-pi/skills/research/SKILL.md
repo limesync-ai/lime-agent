@@ -125,9 +125,9 @@ Findings go into Precedents & Lessons. Otherwise skip and note "git history unav
 
    **Choosing question format:**
 
-   - **`ask_user_question` tool** — when your question has 2-4 concrete options from code analysis (pattern conflicts, integration choices, scope boundaries, priority overrides). The user can always pick "Other" for free-text. Example:
+   - **`ask_user` tool** — when your question has 2-4 concrete options from code analysis (pattern conflicts, integration choices, scope boundaries, priority overrides). The user can always pick "Other" for free-text. Example:
 
-     > Use the `ask_user_question` tool with the following question: "Found 2 patterns for retry logic — which is canonical?". Header: "Pattern". Options: "Event-sourced retry (Recommended)" (`src/events/orders.ts:45-67` — 3 hooks, matches precedent commit `abc123`); "Direct retry loop" (`src/services/OrderService.ts:112` — single use, no event traceability).
+     > Use the `ask_user` tool with the following question: "Found 2 patterns for retry logic — which is canonical?". Header: "Pattern". Options: "Event-sourced retry (Recommended)" (`src/events/orders.ts:45-67` — 3 hooks, matches precedent commit `abc123`); "Direct retry loop" (`src/services/OrderService.ts:112` — single use, no event traceability).
 
    - **Free-text with ❓ Question: prefix** — when the question is open-ended and options can't be predicted (discovery, "what am I missing?", corrections). Example:
      "❓ Question: `src/events/orders.ts:45-67` has 3 event hooks but no error recovery path. Is there a retry mechanism elsewhere I'm not seeing?"
@@ -136,9 +136,9 @@ Findings go into Precedents & Lessons. Otherwise skip and note "git history unav
 
    ❌ "The premise inversion is load-bearing for prioritization — it means Site A is a no-op, and the real bloat only hits general-purpose dispatches. Given this, where is the bloat actually landing? Do your skills dispatch named bundled agents — in which case append-mode is irrelevant — or general-purpose — in which case it IS the dominant source?"
 
-   ✅ Extract the 2 concrete options and call `ask_user_question`: "Where is the prompt bloat landing?". Header: "Bloat source". Options: "Named bundled agents (Recommended)" (Skills dispatch `codebase-analyzer` etc. — `prompt_mode: "replace"`, no parent inheritance); "General-purpose agent" (`default-agents.ts:11-28` — `promptMode: "append"`, inherits full parent prompt).
+   ✅ Extract the 2 concrete options and call `ask_user`: "Where is the prompt bloat landing?". Header: "Bloat source". Options: "Named bundled agents (Recommended)" (Skills dispatch `codebase-analyzer` etc. — `prompt_mode: "replace"`, no parent inheritance); "General-purpose agent" (`default-agents.ts:11-28` — `promptMode: "append"`, inherits full parent prompt).
 
-   **Batching**: When you have 2-4 independent questions (answers don't depend on each other), you MAY batch them in a single `ask_user_question` call. Keep dependent questions sequential.
+   **Batching**: When you have 2-4 independent questions (answers don't depend on each other), you MAY batch them in a single `ask_user` call. Keep dependent questions sequential.
 
    **CRITICAL**: Ask ONE question at a time. Wait for the answer before asking the next. Lead with your most significant finding.
 

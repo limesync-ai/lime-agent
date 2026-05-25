@@ -207,9 +207,7 @@ export class AgentWidget {
 
   /** Ensure the widget update timer is running. */
   ensureTimer() {
-    if (!this.widgetInterval) {
-      this.widgetInterval = setInterval(() => this.update(), 80);
-    }
+    this.clearPersistentWidget();
   }
 
   /** Check if a finished agent should still be shown in the widget. */
@@ -293,7 +291,7 @@ export class AgentWidget {
 
     const finishedLines: string[] = [];
     for (const a of finished) {
-      finishedLines.push(truncate(theme.fg("dim", "├─") + " " + this.renderFinishedLine(a, theme)));
+      finishedLines.push(truncate("  " + this.renderFinishedLine(a, theme)));
     }
 
     const runningLines: string[][] = []; // each entry is [header, activity]
@@ -320,13 +318,13 @@ export class AgentWidget {
       const activity = bg ? describeActivity(bg.activeTools, bg.responseText) : "thinking…";
 
       runningLines.push([
-        truncate(theme.fg("dim", "├─") + ` ${theme.fg("accent", frame)} ${theme.bold(name)}${modeTag}  ${theme.fg("muted", a.description)} ${theme.fg("dim", "·")} ${theme.fg("dim", statsText)}`),
-        truncate(theme.fg("dim", "│  ") + theme.fg("dim", `  ⎿  ${activity}`)),
+        truncate(`  ${theme.fg("accent", frame)} ${theme.bold(name)}${modeTag}  ${theme.fg("muted", a.description)} ${theme.fg("dim", "·")} ${theme.fg("dim", statsText)}`),
+        truncate(`    ${theme.fg("dim", `└ ${activity}`)}`),
       ]);
     }
 
     const queuedLine = queued.length > 0
-      ? truncate(theme.fg("dim", "├─") + ` ${theme.fg("muted", "◦")} ${theme.fg("dim", `${queued.length} queued`)}`)
+      ? truncate(`  ${theme.fg("muted", "◦")} ${theme.fg("dim", `${queued.length} queued`)}`)
       : undefined;
 
     // Assemble with overflow cap (heading + overflow indicator = 2 reserved lines).
@@ -341,20 +339,6 @@ export class AgentWidget {
       for (const pair of runningLines) lines.push(...pair);
       if (queuedLine) lines.push(queuedLine);
 
-      // Fix last connector: swap ├─ → └─ and │ → space for activity lines.
-      if (lines.length > 1) {
-        const last = lines.length - 1;
-        lines[last] = lines[last].replace("├─", "└─");
-        // If last item is a running agent activity line, fix indent of that line
-        // and fix the header line above it.
-        if (runningLines.length > 0 && !queuedLine) {
-          // The last two lines are the last running agent's header + activity.
-          if (last >= 2) {
-            lines[last - 1] = lines[last - 1].replace("├─", "└─");
-            lines[last] = lines[last].replace("│  ", "   ");
-          }
-        }
-      }
     } else {
       // Overflow — prioritize: running > queued > finished.
       // Reserve 1 line for overflow indicator.
@@ -393,7 +377,7 @@ export class AgentWidget {
       if (hiddenRunning > 0) overflowParts.push(`${hiddenRunning} running`);
       if (hiddenFinished > 0) overflowParts.push(`${hiddenFinished} finished`);
       const overflowText = overflowParts.join(", ");
-      lines.push(truncate(theme.fg("dim", "└─") + ` ${theme.fg("dim", `+${hiddenRunning + hiddenFinished} more (${overflowText})`)}`)
+      lines.push(truncate(`  ${theme.fg("dim", `+${hiddenRunning + hiddenFinished} more (${overflowText})`)}`)
       );
     }
 
@@ -402,77 +386,10 @@ export class AgentWidget {
 
   /** Force an immediate widget update. */
   update() {
-    if (!this.uiCtx) return;
-    const allAgents = this.manager.listAgents();
-
-    // Lightweight existence checks — full categorization happens in renderWidget()
-    let runningCount = 0;
-    let queuedCount = 0;
-    let hasFinished = false;
-    for (const a of allAgents) {
-      if (a.status === "running") { runningCount++; }
-      else if (a.status === "queued") { queuedCount++; }
-      else if (a.completedAt && this.shouldShowFinished(a.id, a.status)) { hasFinished = true; }
-    }
-    const hasActive = runningCount > 0 || queuedCount > 0;
-
-    // Nothing to show — clear widget
-    if (!hasActive && !hasFinished) {
-      if (this.widgetRegistered) {
-        this.uiCtx.setWidget("agents", undefined);
-        this.widgetRegistered = false;
-        this.tui = undefined;
-      }
-      if (this.lastStatusText !== undefined) {
-        this.uiCtx.setStatus("subagents", undefined);
-        this.lastStatusText = undefined;
-      }
-      if (this.widgetInterval) { clearInterval(this.widgetInterval); this.widgetInterval = undefined; }
-      // Clean up stale entries
-      for (const [id] of this.finishedTurnAge) {
-        if (!allAgents.some(a => a.id === id)) this.finishedTurnAge.delete(id);
-      }
-      return;
-    }
-
-    // Status bar — only call setStatus when the text actually changes
-    let newStatusText: string | undefined;
-    if (hasActive) {
-      const statusParts: string[] = [];
-      if (runningCount > 0) statusParts.push(`${runningCount} running`);
-      if (queuedCount > 0) statusParts.push(`${queuedCount} queued`);
-      const total = runningCount + queuedCount;
-      newStatusText = `${statusParts.join(", ")} agent${total === 1 ? "" : "s"}`;
-    }
-    if (newStatusText !== this.lastStatusText) {
-      this.uiCtx.setStatus("subagents", newStatusText);
-      this.lastStatusText = newStatusText;
-    }
-
-    this.widgetFrame++;
-
-    // Register widget callback once; subsequent updates use requestRender()
-    // which re-invokes render() without replacing the component (avoids layout thrashing).
-    if (!this.widgetRegistered) {
-      this.uiCtx.setWidget("agents", (tui, theme) => {
-        this.tui = tui;
-        return {
-          render: () => this.renderWidget(tui, theme),
-          invalidate: () => {
-            // Theme changed — force re-registration so factory captures fresh theme.
-            this.widgetRegistered = false;
-            this.tui = undefined;
-          },
-        };
-      }, { placement: "aboveEditor" });
-      this.widgetRegistered = true;
-    } else {
-      // Widget already registered — just request a re-render of existing components.
-      this.tui?.requestRender();
-    }
+    this.clearPersistentWidget();
   }
 
-  dispose() {
+  private clearPersistentWidget() {
     if (this.widgetInterval) {
       clearInterval(this.widgetInterval);
       this.widgetInterval = undefined;
@@ -484,5 +401,9 @@ export class AgentWidget {
     this.widgetRegistered = false;
     this.tui = undefined;
     this.lastStatusText = undefined;
+  }
+
+  dispose() {
+    this.clearPersistentWidget();
   }
 }

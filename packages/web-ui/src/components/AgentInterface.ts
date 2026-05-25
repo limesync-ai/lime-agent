@@ -95,7 +95,7 @@ export class AgentInterface extends LitElement {
 			});
 
 			// Observe the content container inside the scroll container
-			const contentContainer = this._scrollContainer.querySelector(".max-w-3xl");
+			const contentContainer = this._scrollContainer.querySelector(".messages-container");
 			if (contentContainer) {
 				this._resizeObserver.observe(contentContainer);
 			}
@@ -273,7 +273,7 @@ export class AgentInterface extends LitElement {
 			}
 		}
 		return html`
-			<div class="flex flex-col gap-3">
+			<div class="flex flex-col gap-5 py-6">
 				<!-- Stable messages list - won't re-render during streaming -->
 				<message-list
 					.messages=${this.session.state.messages}
@@ -328,7 +328,7 @@ export class AgentInterface extends LitElement {
 		const totalsText = hasTotals ? formatUsage(totals) : "";
 
 		return html`
-			<div class="text-xs text-muted-foreground flex justify-between items-center h-5">
+			<div class="text-[11px] text-muted-foreground flex justify-between items-center h-6 px-1">
 				<div class="flex items-center gap-1">
 					${this.showThemeToggle ? html`<theme-toggle></theme-toggle>` : html``}
 				</div>
@@ -355,12 +355,12 @@ export class AgentInterface extends LitElement {
 			<div class="flex flex-col h-full bg-background text-foreground">
 				<!-- Messages Area -->
 				<div class="flex-1 overflow-y-auto">
-					<div class="max-w-3xl mx-auto p-4 pb-0">${this.renderMessages()}</div>
+					<div class="messages-container max-w-[780px] mx-auto px-3 sm:px-5 pb-28">${this.renderMessages()}</div>
 				</div>
 
 				<!-- Input Area -->
-				<div class="shrink-0">
-					<div class="max-w-3xl mx-auto px-2">
+				<div class="shrink-0 amp-composer -mt-24 pt-10 pb-3">
+					<div class="max-w-[780px] mx-auto px-3 sm:px-5">
 						<message-editor
 							.isStreaming=${state.isStreaming}
 							.currentModel=${state.model}

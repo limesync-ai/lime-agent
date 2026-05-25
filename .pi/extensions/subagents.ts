@@ -1,9 +1,8 @@
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
-// Vendored at repo root via git subtree (`pi-subagents/`). We intentionally
-// import the prebuilt `dist/` bundle rather than the TS source so the
-// extension brings its own resolved deps from `pi-subagents/node_modules/` —
-// no need to add it as a workspace package or share lockfiles.
-import registerSubagents from "../../pi-subagents/dist/index.js";
+// Vendored at repo root via git subtree (`pi-subagents/`). Load the TS source
+// directly so local renderer/style changes are picked up by Pi's extension
+// loader without rebuilding the vendored package.
+import registerSubagents from "../../pi-subagents/src/index.ts";
 
 export default function (pi: ExtensionAPI) {
 	return registerSubagents(pi);

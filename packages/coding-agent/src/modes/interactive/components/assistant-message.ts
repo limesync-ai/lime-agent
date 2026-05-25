@@ -1,6 +1,7 @@
 import type { AssistantMessage } from "@mariozechner/pi-ai";
 import { Container, Markdown, type MarkdownTheme, Spacer, Text } from "@mariozechner/pi-tui";
 import { getMarkdownTheme, theme } from "../theme/theme.js";
+import { ThinkingBlock } from "./thinking-block.js";
 
 const OSC133_ZONE_START = "\x1b]133;A\x07";
 const OSC133_ZONE_END = "\x1b]133;B\x07";
@@ -16,6 +17,7 @@ export class AssistantMessageComponent extends Container {
 	private hiddenThinkingLabel: string;
 	private lastMessage?: AssistantMessage;
 	private hasToolCalls = false;
+	private thinkingBlocks = new Map<number, ThinkingBlock>();
 
 	constructor(
 		message?: AssistantMessage,
@@ -59,6 +61,13 @@ export class AssistantMessageComponent extends Container {
 		}
 	}
 
+	dispose(): void {
+		for (const block of this.thinkingBlocks.values()) {
+			block.dispose();
+		}
+		this.thinkingBlocks.clear();
+	}
+
 	override render(width: number): string[] {
 		const lines = super.render(width);
 		if (this.hasToolCalls || lines.length === 0) {
@@ -85,6 +94,7 @@ export class AssistantMessageComponent extends Container {
 		}
 
 		// Render content in order
+		const usedThinkingBlocks = new Set<number>();
 		for (let i = 0; i < message.content.length; i++) {
 			const content = message.content[i];
 			if (content.type === "text" && content.text.trim()) {
@@ -107,17 +117,28 @@ export class AssistantMessageComponent extends Container {
 						this.contentContainer.addChild(new Spacer(1));
 					}
 				} else {
-					// Thinking traces in thinkingText color, italic
-					this.contentContainer.addChild(
-						new Markdown(content.thinking.trim(), 1, 0, this.markdownTheme, {
-							color: (text: string) => theme.fg("thinkingText", text),
-							italic: true,
-						}),
-					);
+					let block = this.thinkingBlocks.get(i);
+					const inProgress = message.stopReason === undefined;
+					if (!block) {
+						block = new ThinkingBlock(content.thinking.trim(), inProgress, this.markdownTheme);
+						this.thinkingBlocks.set(i, block);
+					} else {
+						block.setText(content.thinking.trim());
+						block.setInProgress(inProgress);
+					}
+					usedThinkingBlocks.add(i);
+					this.contentContainer.addChild(block);
 					if (hasVisibleContentAfter) {
 						this.contentContainer.addChild(new Spacer(1));
 					}
 				}
+			}
+		}
+
+		for (const [index, block] of this.thinkingBlocks) {
+			if (!usedThinkingBlocks.has(index)) {
+				block.dispose();
+				this.thinkingBlocks.delete(index);
 			}
 		}
 

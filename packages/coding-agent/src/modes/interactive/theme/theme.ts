@@ -48,6 +48,7 @@ const ThemeJsonSchema = Type.Object({
 		toolSuccessBg: ColorValueSchema,
 		toolErrorBg: ColorValueSchema,
 		toolTitle: ColorValueSchema,
+		toolPath: ColorValueSchema,
 		toolOutput: ColorValueSchema,
 		// Markdown (10 colors)
 		mdHeading: ColorValueSchema,
@@ -113,6 +114,7 @@ export type ThemeColor =
 	| "customMessageText"
 	| "customMessageLabel"
 	| "toolTitle"
+	| "toolPath"
 	| "toolOutput"
 	| "mdHeading"
 	| "mdLink"

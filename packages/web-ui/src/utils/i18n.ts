@@ -29,6 +29,7 @@ declare module "@mariozechner/mini-lit" {
 		"Update API key": string;
 		"Enter API key": string;
 		"Type a message...": string;
+		"Ask Lime Agent anything...": string;
 		"Failed to fetch file": string;
 		"Invalid source type": string;
 		PDF: string;
@@ -238,6 +239,7 @@ export const translations = {
 		"Update API key": "Update API key",
 		"Enter API key": "Enter API key",
 		"Type a message...": "Type a message...",
+		"Ask Lime Agent anything...": "Ask Lime Agent anything...",
 		"Failed to fetch file": "Failed to fetch file",
 		"Invalid source type": "Invalid source type",
 		PDF: "PDF",
@@ -457,6 +459,7 @@ export const translations = {
 		"Update API key": "API-Schlüssel aktualisieren",
 		"Enter API key": "API-Schlüssel eingeben",
 		"Type a message...": "Nachricht eingeben...",
+		"Ask Lime Agent anything...": "Lime Agent alles fragen...",
 		"Failed to fetch file": "Datei konnte nicht abgerufen werden",
 		"Invalid source type": "Ungültiger Quellentyp",
 		PDF: "PDF",

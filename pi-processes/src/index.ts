@@ -27,6 +27,12 @@ export default async function (pi: ExtensionAPI) {
     manager,
     config,
   );
+  const unsubscribeInterrupt = pi.events.on("interactive:interrupt", () => {
+    void manager.killAllLive().then(() => updateWidget());
+  });
+  pi.on("session_shutdown", () => {
+    unsubscribeInterrupt();
+  });
   setupProcessesCommands(pi, manager, dockActions);
   setupProcessesTools(pi, manager);
   registerProcessesSettings(pi, () => {

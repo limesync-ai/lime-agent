@@ -39,6 +39,7 @@ export default function question(pi: ExtensionAPI) {
 		label: "Question",
 		description: "Ask the user a question and let them pick from options. Use when you need user input to proceed.",
 		parameters: QuestionParams,
+		renderShell: "self",
 
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			if (!ctx.hasUI) {
@@ -228,7 +229,7 @@ export default function question(pi: ExtensionAPI) {
 		},
 
 		renderCall(args, theme, _context) {
-			let text = theme.fg("toolTitle", theme.bold("question ")) + theme.fg("muted", args.question);
+			let text = `${theme.fg("warning", "?")} ${theme.fg("toolTitle", "Question")} ${theme.fg("muted", truncateToWidth(args.question, 80))}`;
 			const opts = Array.isArray(args.options) ? args.options : [];
 			if (opts.length) {
 				const labels = opts.map((o: OptionWithDesc) => o.label);
@@ -246,19 +247,23 @@ export default function question(pi: ExtensionAPI) {
 			}
 
 			if (details.answer === null) {
-				return new Text(theme.fg("warning", "Cancelled"), 0, 0);
+				return new Text(`${theme.fg("warning", "✗")} ${theme.fg("toolTitle", "Question cancelled")}`, 0, 0);
 			}
 
 			if (details.wasCustom) {
 				return new Text(
-					theme.fg("success", "✓ ") + theme.fg("muted", "(wrote) ") + theme.fg("accent", details.answer),
+					`${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Answered")} ${theme.fg("muted", "(wrote) ")}${theme.fg("accent", details.answer)}`,
 					0,
 					0,
 				);
 			}
 			const idx = details.options.indexOf(details.answer) + 1;
 			const display = idx > 0 ? `${idx}. ${details.answer}` : details.answer;
-			return new Text(theme.fg("success", "✓ ") + theme.fg("accent", display), 0, 0);
+			return new Text(
+				`${theme.fg("success", "✓")} ${theme.fg("toolTitle", "Answered")} ${theme.fg("accent", display)}`,
+				0,
+				0,
+			);
 		},
 	});
 }

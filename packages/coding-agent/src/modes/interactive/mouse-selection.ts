@@ -45,6 +45,11 @@ export function registerClickTarget(id: string, handler: () => void): () => void
 	};
 }
 
+export interface MouseSelectionOptions {
+	onWheel?: (deltaRows: number) => void;
+	transformRender?: (lines: string[], width: number, height: number) => string[];
+}
+
 /**
  * Mouse-driven text selection for the interactive TUI. Built to mirror what
  * opentui (and therefore opencode) provide out of the box: capture mouse
@@ -241,6 +246,8 @@ export class MouseSelection {
 	private pressRow = 0;
 	private pressCol = 0;
 
+	constructor(private readonly options: MouseSelectionOptions = {}) {}
+
 	enable(tui: TUI): void {
 		if (this.tui) return;
 		this.tui = tui;
@@ -269,9 +276,10 @@ export class MouseSelection {
 				this.lastTermWidth = width;
 				this.lastTermHeight = height;
 			}
+			const transformedLines = this.options.transformRender?.(lines, width, height) ?? lines;
 			// Capture pre-highlight lines for text extraction on release.
-			this.lastRenderedLines = lines;
-			return applyHighlight(lines, this.selection, width, height);
+			this.lastRenderedLines = transformedLines;
+			return applyHighlight(transformedLines, this.selection, width, height);
 		});
 	}
 
@@ -307,7 +315,12 @@ export class MouseSelection {
 		if (ev.button === 64 || ev.button === 65) {
 			if (ev.kind === "press") {
 				this.clearSelection();
-				this.tui.scrollViewport(ev.button === 64 ? 3 : -3);
+				const deltaRows = ev.button === 64 ? 3 : -3;
+				if (this.options.onWheel) {
+					this.options.onWheel(deltaRows);
+				} else {
+					this.tui.scrollViewport(deltaRows);
+				}
 			}
 			return;
 		}

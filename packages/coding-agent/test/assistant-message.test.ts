@@ -1,4 +1,5 @@
 import type { AssistantMessage } from "@mariozechner/pi-ai";
+import stripAnsi from "strip-ansi";
 import { describe, expect, test } from "vitest";
 import { AssistantMessageComponent } from "../src/modes/interactive/components/assistant-message.js";
 import { initTheme } from "../src/modes/interactive/theme/theme.js";
@@ -53,5 +54,19 @@ describe("AssistantMessageComponent", () => {
 		expect(rendered.includes(OSC133_ZONE_START)).toBe(false);
 		expect(rendered.includes(OSC133_ZONE_END)).toBe(false);
 		expect(rendered.includes(OSC133_ZONE_FINAL)).toBe(false);
+	});
+
+	test("renders thinking blocks collapsed with a clickable header after completion", () => {
+		initTheme("dark");
+
+		const component = new AssistantMessageComponent(
+			createAssistantMessage([{ type: "thinking", thinking: "private reasoning text" }]),
+		);
+		const rendered = component.render(80).join("\n");
+
+		expect(rendered).toContain("\x1b]9999;CT:tb-");
+		expect(stripAnsi(rendered)).toContain(" ✓ Thinking ▶");
+		expect(rendered).toContain("▶");
+		expect(rendered).not.toContain("private reasoning text");
 	});
 });

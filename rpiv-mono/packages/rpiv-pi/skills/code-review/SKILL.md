@@ -36,7 +36,7 @@ Every Wave-2 agent prompt contains EXACTLY: (a) `Known Context:` followed by the
    - Range `A..B` → verify A is ancestor of B (`git merge-base --is-ancestor A B`; swap if reversed); `OLDEST=A`, `NEWEST=B`, strategy=`explicit-range`
    - Commit list (`h1,h2,h3` or whitespace-separated) → find endpoints via `git rev-list --topo-order`; `OLDEST` = farthest-from-HEAD, `NEWEST` = nearest. Reject if not on a single linear ancestry (ask user to clarify). Strategy=`first-parent` (ancestry invariant preserves named commits under first-parent traversal).
    - PR branch name → `OLDEST=$(git merge-base "$DEFAULT_BRANCH" HEAD)`, `NEWEST=HEAD`, strategy=`first-parent` — note: `OLDEST` is already the parent-of-first-PR-commit, so skip the `BASE` computation below and use `BASE=OLDEST` directly.
-   - Anything unrecognised (prose, branch name that fails to resolve, mixed list) → ask the user to clarify via `ask_user_question`: (A) "review current branch vs `$DEFAULT_BRANCH` (first-parent)", (B) "review uncommitted changes", (C) "restate scope". Do NOT silently guess.
+   - Anything unrecognised (prose, branch name that fails to resolve, mixed list) → ask the user to clarify via `ask_user`: (A) "review current branch vs `$DEFAULT_BRANCH` (first-parent)", (B) "review uncommitted changes", (C) "restate scope". Do NOT silently guess.
 
 2. **Compute the range once**: `BASE=$(git rev-parse "$OLDEST^")`, `TIP=$NEWEST`, `RANGE="$BASE..$TIP"`. This gives a range that INCLUDES `OLDEST`'s own changes (standard `A..B` excludes `A`). Every subsequent git command uses `$RANGE` — do NOT inline a `^` character in templates; orchestrators sometimes drop it. Also set `FP_FLAG="--first-parent"` when strategy=`first-parent`, else `FP_FLAG=""`.
 
@@ -463,7 +463,7 @@ Ask follow-ups.
 
 ## Important Notes
 
-- **Frontmatter**: `allowed-tools` is intentionally omitted — the skill inherits `subagent`, `ask_user_question`, `advisor`, `Write`, `web_search`, `todo`. Do NOT re-add the line.
+- **Frontmatter**: `allowed-tools` is intentionally omitted — the skill inherits `subagent`, `ask_user`, `advisor`, `Write`, `web_search`, `todo`. Do NOT re-add the line.
 - **Security-lens precision stance**: prefer false negatives. Evidence must carry `confidence ≥ 8`; 🔴 requires an explicit source→sink trace. Missing hardening without a traced sink is NOT a finding.
 - **Load-bearing ordering**:
   - Wave-1 fans out at T=0 — integration-scanner, Precedents, (when `ManifestChanged`) Dependencies + CVE, and (when `len(PeerPairs) > 0`) the peer-mirror agent dispatch in a single multi-subagent message. integration-scanner AND peer-mirror gate Wave-2 (both feed the Discovery Map Wave-2 consumes); **Precedents is a hard gate on Step 5** (its follow-up-within-30-days counts drive severity weighting; reconciling without them produces mis-weighted severities the verification pass cannot correct); Dependencies + CVE soft-gate Step 5.

@@ -242,7 +242,7 @@ export class MessageEditor extends LitElement {
 
 		return html`
 			<div
-				class="bg-card rounded-xl border shadow-sm relative ${this.isDragging ? "border-primary border-2 bg-primary/5" : "border-border"}"
+				class="amp-composer-card bg-card rounded-2xl relative overflow-hidden ${this.isDragging ? "border-primary border-2 bg-primary/5" : ""}"
 				@dragover=${this.handleDragOver}
 				@dragleave=${this.handleDragLeave}
 				@drop=${this.handleDrop}
@@ -278,10 +278,10 @@ export class MessageEditor extends LitElement {
 				}
 
 				<textarea
-					class="w-full bg-transparent p-4 text-foreground placeholder-muted-foreground outline-none resize-none overflow-y-auto"
-					placeholder=${i18n("Type a message...")}
+					class="w-full bg-transparent px-4 pt-4 pb-3 text-[15px] leading-6 text-foreground placeholder-muted-foreground outline-none resize-none overflow-y-auto"
+					placeholder=${i18n("Ask Lime Agent anything...")}
 					rows="1"
-					style="max-height: 200px; field-sizing: content; min-height: 1lh; height: auto;"
+					style="max-height: 220px; field-sizing: content; min-height: 1.75rem; height: auto;"
 					.value=${this.value}
 					@input=${this.handleTextareaInput}
 					@keydown=${this.handleKeyDown}
@@ -300,7 +300,7 @@ export class MessageEditor extends LitElement {
 				/>
 
 				<!-- Button Row -->
-				<div class="px-2 pb-2 flex items-center justify-between">
+				<div class="px-2.5 pb-2.5 flex items-center justify-between">
 					<!-- Left side - attachment and thinking selector -->
 					<div class="flex gap-2 items-center">
 						${
@@ -351,7 +351,7 @@ export class MessageEditor extends LitElement {
 					</div>
 
 					<!-- Model selector and send on the right -->
-					<div class="flex gap-2 items-center">
+					<div class="flex gap-2 items-center min-w-0">
 						${
 							this.showModelSelector && this.currentModel
 								? html`
@@ -370,7 +370,8 @@ export class MessageEditor extends LitElement {
 											${icon(Sparkles, "sm")}
 											<span class="ml-1">${this.currentModel.id}</span>
 										`,
-										className: "h-8 text-xs truncate",
+										className:
+											"h-8 text-xs truncate max-w-[240px] text-muted-foreground hover:text-foreground",
 									})}
 								`
 								: ""
@@ -388,12 +389,12 @@ export class MessageEditor extends LitElement {
 								`
 								: html`
 									${Button({
-										variant: "ghost",
+										variant: "default",
 										size: "icon",
 										onClick: this.handleSend,
 										disabled: (!this.value.trim() && this.attachments.length === 0) || this.processingFiles,
 										children: html`<div style="transform: rotate(-45deg)">${icon(Send, "sm")}</div>`,
-										className: "h-8 w-8",
+										className: "h-8 w-8 rounded-full",
 									})}
 								`
 						}

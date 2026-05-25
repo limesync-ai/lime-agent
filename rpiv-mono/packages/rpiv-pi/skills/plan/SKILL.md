@@ -61,7 +61,7 @@ Total: [N] files across [M] phases.
 Does this phasing make sense? Should I adjust the order or granularity?
 ```
 
-Use the `ask_user_question` tool to confirm the phase structure. Question: "[N] phases, [M] total files. Does this structure work?". Header: "Phases". Options: "Proceed (Recommended)" (Write the detailed plan with code blocks and success criteria); "Adjust phases" (Split, merge, or reorder phases before writing); "Change scope" (Add or remove files from the plan).
+Use the `ask_user` tool to confirm the phase structure. Question: "[N] phases, [M] total files. Does this structure work?". Header: "Phases". Options: "Proceed (Recommended)" (Write the detailed plan with code blocks and success criteria); "Adjust phases" (Split, merge, or reorder phases before writing); "Change scope" (Add or remove files from the plan).
 
 Get feedback on structure before writing details.
 

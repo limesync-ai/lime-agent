@@ -21,11 +21,6 @@ export interface SiblingPlugin {
 
 export const SIBLINGS: readonly SiblingPlugin[] = [
 	{
-		pkg: "npm:@juicesharp/rpiv-ask-user-question",
-		matches: /rpiv-ask-user-question/i,
-		provides: "ask_user_question tool",
-	},
-	{
 		pkg: "npm:@juicesharp/rpiv-todo",
 		matches: /rpiv-todo/i,
 		provides: "todo tool + /todos command + overlay widget",

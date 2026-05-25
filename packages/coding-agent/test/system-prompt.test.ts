@@ -11,7 +11,7 @@ describe("buildSystemPrompt", () => {
 				cwd: process.cwd(),
 			});
 
-			expect(prompt).toContain("Available tools:\n(none)");
+			expect(prompt).toContain("# Available Tools\n(none)");
 		});
 
 		test("shows file paths guideline even with no tools", () => {
@@ -23,6 +23,31 @@ describe("buildSystemPrompt", () => {
 			});
 
 			expect(prompt).toContain("Show file paths clearly");
+		});
+	});
+
+	describe("harness guidance", () => {
+		test("includes task, safety, tool, and reporting contracts", () => {
+			const prompt = buildSystemPrompt({
+				selectedTools: ["read", "bash", "edit", "write"],
+				toolSnippets: {
+					read: "Read file contents",
+					bash: "Execute bash commands",
+					edit: "Make surgical edits",
+					write: "Create or overwrite files",
+				},
+				contextFiles: [],
+				skills: [],
+				cwd: process.cwd(),
+			});
+
+			expect(prompt).toContain("# Doing Tasks");
+			expect(prompt).toContain("Read relevant code before proposing or editing changes.");
+			expect(prompt).toContain("# Executing Actions With Care");
+			expect(prompt).toContain("Ask the user before hard-to-reverse or externally visible actions");
+			expect(prompt).toContain("# Using Tools");
+			expect(prompt).toContain("Use read to inspect file contents instead of shelling out");
+			expect(prompt).toContain("Report outcomes truthfully.");
 		});
 	});
 

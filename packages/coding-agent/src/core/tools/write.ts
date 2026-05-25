@@ -133,12 +133,19 @@ function formatWriteCall(
 	options: ToolRenderResultOptions,
 	theme: typeof import("../../modes/interactive/theme/theme.js").theme,
 	cache: WriteHighlightCache | undefined,
+	isError: boolean,
 ): string {
 	const rawPath = str(args?.file_path ?? args?.path);
 	const fileContent = str(args?.content);
 	const path = rawPath !== null ? shortenPath(rawPath) : null;
 	const invalidArg = invalidArgText(theme);
-	let text = `${theme.fg("toolTitle", theme.bold("write"))} ${path === null ? invalidArg : path ? theme.fg("accent", path) : theme.fg("toolOutput", "...")}`;
+	const glyph = isError
+		? theme.fg("error", "✗")
+		: options.isPartial
+			? theme.fg("muted", "…")
+			: theme.fg("success", "✓");
+	const verb = options.isPartial ? "Writing" : "Wrote";
+	let text = `${glyph} ${theme.fg("toolTitle", verb)} ${path === null ? invalidArg : path ? theme.fg("toolPath", path) : theme.fg("toolOutput", "...")}`;
 
 	if (fileContent === null) {
 		text += `\n\n${theme.fg("error", "[invalid content arg - expected string]")}`;
@@ -191,6 +198,7 @@ export function createWriteToolDefinition(
 		promptSnippet: "Create or overwrite files",
 		promptGuidelines: ["Use write only for new files or complete rewrites."],
 		parameters: writeSchema,
+		renderShell: "self",
 		async execute(
 			_toolCallId,
 			{ path, content }: { path: string; content: string },
@@ -258,6 +266,7 @@ export function createWriteToolDefinition(
 					{ expanded: context.expanded, isPartial: context.isPartial },
 					theme,
 					component.cache,
+					context.isError,
 				),
 			);
 			return component;

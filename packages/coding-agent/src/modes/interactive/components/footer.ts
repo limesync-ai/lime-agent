@@ -26,6 +26,21 @@ function formatTokens(count: number): string {
 	return `${Math.round(count / 1000000)}M`;
 }
 
+function rightAlign(text: string, width: number, sideMargin = 2): string {
+	const innerWidth = Math.max(1, width - sideMargin);
+	const padding = Math.max(0, innerWidth - visibleWidth(text));
+	return " ".repeat(padding) + text + " ".repeat(sideMargin);
+}
+
+function compactModelName(modelName: string): string {
+	return modelName
+		.replace(/^claude-/, "")
+		.replace(/-20\d{6,}$/, "")
+		.replace(/-latest$/, "")
+		.replace(/-preview$/, "")
+		.replace(/-/g, " ");
+}
+
 /**
  * Footer component that shows pwd, token stats, and context usage.
  * Computes token/context stats from session, gets git branch and extension statuses from provider.
@@ -74,16 +89,9 @@ export class FooterComponent implements Component {
 			.some((e) => e.type === "message" && e.message.role === "assistant");
 		if (!hasAssistantMessage) {
 			const thinking = state.thinkingLevel || "off";
-			const model = state.model?.id || "no-model";
-			const left = theme.fg("dim", `thinking: ${thinking}`);
-			const right = theme.fg("dim", model);
-			// Inset slightly from the screen edges so the footer reads as
-			// indented past the editor's rounded-box left/right walls.
-			const SIDE_MARGIN = 2;
-			const innerWidth = Math.max(0, width - SIDE_MARGIN * 2);
-			const padCount = Math.max(1, innerWidth - visibleWidth(left) - visibleWidth(right));
-			const margin = " ".repeat(SIDE_MARGIN);
-			return [margin + left + " ".repeat(padCount) + right + margin];
+			const model = compactModelName(state.model?.id || "no-model");
+			const status = `${theme.fg("dim", "–")} ${theme.fg("success", thinking === "off" ? model : `${thinking}²`)}`;
+			return [rightAlign(status, width), rightAlign(theme.fg("dim", this.session.sessionManager.getCwd()), width)];
 		}
 
 		// Calculate cumulative usage from ALL session entries (not just post-compaction messages)
@@ -129,101 +137,36 @@ export class FooterComponent implements Component {
 			pwd = `${pwd} • ${sessionName}`;
 		}
 
-		// Build stats line
-		const statsParts = [];
-		if (totalInput) statsParts.push(`↑${formatTokens(totalInput)}`);
-		if (totalOutput) statsParts.push(`↓${formatTokens(totalOutput)}`);
-		if (totalCacheRead) statsParts.push(`R${formatTokens(totalCacheRead)}`);
-		if (totalCacheWrite) statsParts.push(`W${formatTokens(totalCacheWrite)}`);
-
-		// Show cost with "(sub)" indicator if using OAuth subscription
+		// Build Amp-style compact status: cost on the right, model/thinking in green.
 		const usingSubscription = state.model ? this.session.modelRegistry.isUsingOAuth(state.model) : false;
-		if (totalCost || usingSubscription) {
-			const costStr = `$${totalCost.toFixed(3)}${usingSubscription ? " (sub)" : ""}`;
-			statsParts.push(costStr);
-		}
+		const cost = `$${totalCost.toFixed(2)}${usingSubscription ? " (sub)" : ""}`;
+		const modelName = compactModelName(state.model?.id || "no-model");
+		const thinkingLevel = state.thinkingLevel || "off";
+		const modelStatus = state.model?.reasoning && thinkingLevel !== "off" ? `${thinkingLevel}²` : modelName;
+		const statusLine = `${theme.fg("dim", cost)} ${theme.fg("dim", "–")} ${theme.fg("success", modelStatus)}`;
 
-		// Colorize context percentage based on usage
-		let contextPercentStr: string;
+		const contextStats = [];
+		if (totalInput) contextStats.push(`↑${formatTokens(totalInput)}`);
+		if (totalOutput) contextStats.push(`↓${formatTokens(totalOutput)}`);
+		if (totalCacheRead) contextStats.push(`R${formatTokens(totalCacheRead)}`);
+		if (totalCacheWrite) contextStats.push(`W${formatTokens(totalCacheWrite)}`);
 		const autoIndicator = this.autoCompactEnabled ? " (auto)" : "";
 		const contextPercentDisplay =
 			contextPercent === "?"
 				? `?/${formatTokens(contextWindow)}${autoIndicator}`
 				: `${contextPercent}%/${formatTokens(contextWindow)}${autoIndicator}`;
 		if (contextPercentValue > 90) {
-			contextPercentStr = theme.fg("error", contextPercentDisplay);
+			contextStats.push(theme.fg("error", contextPercentDisplay));
 		} else if (contextPercentValue > 70) {
-			contextPercentStr = theme.fg("warning", contextPercentDisplay);
+			contextStats.push(theme.fg("warning", contextPercentDisplay));
 		} else {
-			contextPercentStr = contextPercentDisplay;
+			contextStats.push(contextPercentDisplay);
 		}
-		statsParts.push(contextPercentStr);
-
-		let statsLeft = statsParts.join(" ");
-
-		// Add model name on the right side, plus thinking level if model supports it
-		const modelName = state.model?.id || "no-model";
-
-		let statsLeftWidth = visibleWidth(statsLeft);
-
-		// If statsLeft is too wide, truncate it
-		if (statsLeftWidth > width) {
-			statsLeft = truncateToWidth(statsLeft, width, "...");
-			statsLeftWidth = visibleWidth(statsLeft);
-		}
-
-		// Calculate available space for padding (minimum 2 spaces between stats and model)
-		const minPadding = 2;
-
-		// Add thinking level indicator if model supports reasoning
-		let rightSideWithoutProvider = modelName;
-		if (state.model?.reasoning) {
-			const thinkingLevel = state.thinkingLevel || "off";
-			rightSideWithoutProvider =
-				thinkingLevel === "off" ? `${modelName} • thinking off` : `${modelName} • ${thinkingLevel}`;
-		}
-
-		// Prepend the provider in parentheses if there are multiple providers and there's enough room
-		let rightSide = rightSideWithoutProvider;
-		if (this.footerData.getAvailableProviderCount() > 1 && state.model) {
-			rightSide = `(${state.model!.provider}) ${rightSideWithoutProvider}`;
-			if (statsLeftWidth + minPadding + visibleWidth(rightSide) > width) {
-				// Too wide, fall back
-				rightSide = rightSideWithoutProvider;
-			}
-		}
-
-		const rightSideWidth = visibleWidth(rightSide);
-		const totalNeeded = statsLeftWidth + minPadding + rightSideWidth;
-
-		let statsLine: string;
-		if (totalNeeded <= width) {
-			// Both fit - add padding to right-align model
-			const padding = " ".repeat(width - statsLeftWidth - rightSideWidth);
-			statsLine = statsLeft + padding + rightSide;
-		} else {
-			// Need to truncate right side
-			const availableForRight = width - statsLeftWidth - minPadding;
-			if (availableForRight > 0) {
-				const truncatedRight = truncateToWidth(rightSide, availableForRight, "");
-				const truncatedRightWidth = visibleWidth(truncatedRight);
-				const padding = " ".repeat(Math.max(0, width - statsLeftWidth - truncatedRightWidth));
-				statsLine = statsLeft + padding + truncatedRight;
-			} else {
-				// Not enough space for right side at all
-				statsLine = statsLeft;
-			}
-		}
-
-		// Apply dim to each part separately. statsLeft may contain color codes (for context %)
-		// that end with a reset, which would clear an outer dim wrapper. So we dim the parts
-		// before and after the colored section independently.
-		const dimStatsLeft = theme.fg("dim", statsLeft);
-		const remainder = statsLine.slice(statsLeft.length); // padding + rightSide
-		const dimRemainder = theme.fg("dim", remainder);
-
-		const pwdLine = truncateToWidth(theme.fg("dim", pwd), width, theme.fg("dim", "..."));
-		const lines = [pwdLine, dimStatsLeft + dimRemainder];
+		const compactContext = contextStats.length ? theme.fg("dim", contextStats.join(" ")) : "";
+		const leftContext = truncateToWidth(compactContext, Math.max(0, width - visibleWidth(statusLine) - 4), "");
+		const padding = Math.max(1, width - visibleWidth(leftContext) - visibleWidth(statusLine) - 2);
+		const pwdLine = truncateToWidth(theme.fg("dim", pwd), width - 2, theme.fg("dim", "..."));
+		const lines = [`${leftContext}${" ".repeat(padding)}${statusLine}  `, rightAlign(pwdLine, width)];
 
 		// Add extension statuses on a single line, sorted by key alphabetically
 		const extensionStatuses = this.footerData.getExtensionStatuses();

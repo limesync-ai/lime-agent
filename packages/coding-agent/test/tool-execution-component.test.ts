@@ -6,8 +6,10 @@ import { beforeAll, describe, expect, test } from "vitest";
 import { getReadmePath } from "../src/config.js";
 import type { ToolDefinition } from "../src/core/extensions/types.js";
 import { type BashOperations, createBashToolDefinition } from "../src/core/tools/bash.js";
+import { createEditToolDefinition } from "../src/core/tools/edit.js";
 import { createReadTool, createReadToolDefinition } from "../src/core/tools/read.js";
 import { createWriteToolDefinition } from "../src/core/tools/write.js";
+import { renderDiff } from "../src/modes/interactive/components/diff.js";
 import { ToolExecutionComponent } from "../src/modes/interactive/components/tool-execution.js";
 import { initTheme } from "../src/modes/interactive/theme/theme.js";
 
@@ -83,7 +85,7 @@ describe("ToolExecutionComponent parity", () => {
 		);
 		component.updateResult({ content: [], details: { diff: "+1 after", firstChangedLine: 1 }, isError: false });
 		const rendered = stripAnsi(component.render(120).join("\n"));
-		expect(rendered).toContain("edit");
+		expect(rendered).toContain("Edited");
 		expect(rendered).toContain("README.md");
 		expect(rendered).not.toContain(":1");
 	});
@@ -99,7 +101,7 @@ describe("ToolExecutionComponent parity", () => {
 			process.cwd(),
 		);
 		const rendered = stripAnsi(component.render(120).join("\n"));
-		expect(rendered).toContain("read");
+		expect(rendered).toContain("Read");
 		expect(rendered).toContain("README.md");
 	});
 
@@ -135,7 +137,7 @@ describe("ToolExecutionComponent parity", () => {
 		);
 		component.updateResult({ content: [{ type: "text", text: "hello" }], details: undefined, isError: false }, false);
 		const rendered = stripAnsi(component.render(120).join("\n"));
-		expect(rendered.match(/\bread\b/g)?.length ?? 0).toBe(1);
+		expect(rendered.match(/\bRead\b/g)?.length ?? 0).toBe(1);
 	});
 
 	test("inherits missing built-in result renderer slot from the built-in tool", () => {
@@ -156,7 +158,11 @@ describe("ToolExecutionComponent parity", () => {
 		component.updateResult({ content: [{ type: "text", text: "hello" }], details: undefined, isError: false }, false);
 		const rendered = stripAnsi(component.render(120).join("\n"));
 		expect(rendered).toContain("override call");
-		expect(rendered).toContain("hello");
+		expect(rendered).not.toContain("hello");
+
+		component.setExpanded(true);
+		const expanded = stripAnsi(component.render(120).join("\n"));
+		expect(expanded).toContain("hello");
 	});
 
 	test("inherits missing built-in call renderer slot from the built-in tool", () => {
@@ -176,7 +182,7 @@ describe("ToolExecutionComponent parity", () => {
 		);
 		component.updateResult({ content: [{ type: "text", text: "hello" }], details: undefined, isError: false }, false);
 		const rendered = stripAnsi(component.render(120).join("\n"));
-		expect(rendered).toContain("read");
+		expect(rendered).toContain("Read");
 		expect(rendered).toContain("README.md");
 		expect(rendered).toContain("override result");
 	});
@@ -311,7 +317,74 @@ describe("ToolExecutionComponent parity", () => {
 		expect(rendered).not.toContain("two\n\n");
 	});
 
-	test("trims trailing blank display lines from read results", () => {
+	test("renders bash calls with a fixed status symbol column", () => {
+		const component = new ToolExecutionComponent(
+			"bash",
+			"tool-bash-render",
+			{ command: "ls -la" },
+			{},
+			createBashToolDefinition(process.cwd()),
+			createFakeTui(),
+			process.cwd(),
+		);
+		const lines = stripAnsi(component.render(120).join("\n")).split("\n");
+		const callLine = lines.find((line) => line.trimStart().startsWith("$"));
+		expect(callLine?.startsWith(" $ ")).toBe(true);
+		expect(callLine).toContain("ls -la");
+	});
+
+	test("renders read calls with a fixed status symbol column", () => {
+		const component = new ToolExecutionComponent(
+			"read",
+			"tool-read-render",
+			{ path: "notes.txt" },
+			{},
+			createReadToolDefinition(process.cwd()),
+			createFakeTui(),
+			process.cwd(),
+		);
+		component.updateResult({ content: [{ type: "text", text: "hello" }], details: undefined, isError: false }, false);
+		const lines = stripAnsi(component.render(120).join("\n")).split("\n");
+		const callLine = lines.find((line) => line.includes("Read notes.txt"));
+		expect(callLine?.startsWith(" ✓ ")).toBe(true);
+	});
+
+	test("renders edit headers and diff bodies on separate aligned columns", () => {
+		const component = new ToolExecutionComponent(
+			"edit",
+			"tool-edit-render",
+			{ path: "README.md", edits: [{ oldText: "before", newText: "after" }] },
+			{},
+			createEditToolDefinition(process.cwd()),
+			createFakeTui(),
+			process.cwd(),
+		);
+		component.updateResult(
+			{
+				content: [{ type: "text", text: "Successfully replaced 1 block(s) in README.md." }],
+				details: { diff: " 1 before\n-2 old\n+2 new\n 3 after", firstChangedLine: 2 },
+				isError: false,
+			},
+			false,
+		);
+		const lines = stripAnsi(component.render(120).join("\n")).split("\n");
+		const header = lines.find((line) => line.includes("Edited README.md"));
+		const removed = lines.find((line) => line.includes("2 - old"));
+		const added = lines.find((line) => line.includes("2 + new"));
+		expect(header?.startsWith(" ✓ ")).toBe(true);
+		expect(removed?.startsWith("    ")).toBe(true);
+		expect(added?.startsWith("    ")).toBe(true);
+	});
+
+	test("renders diff line numbers before change symbols", () => {
+		const rendered = stripAnsi(renderDiff(" 1 context\n-2 old\n+2 new\n 3 after"));
+		expect(rendered).toContain("1   context");
+		expect(rendered).toContain("2 - old");
+		expect(rendered).toContain("2 + new");
+		expect(rendered).toContain("3   after");
+	});
+
+	test("hides regular read result previews until expanded", () => {
 		const component = new ToolExecutionComponent(
 			"read",
 			"tool-8",
@@ -326,9 +399,15 @@ describe("ToolExecutionComponent parity", () => {
 			false,
 		);
 		const rendered = stripAnsi(component.render(120).join("\n"));
-		expect(rendered).toContain("one");
-		expect(rendered).toContain("two");
-		expect(rendered).not.toContain("two\n\n");
+		expect(rendered).toContain("Read notes.txt");
+		expect(rendered).not.toContain("one");
+		expect(rendered).not.toContain("two");
+
+		component.setExpanded(true);
+		const expanded = stripAnsi(component.render(120).join("\n"));
+		expect(expanded).toContain("one");
+		expect(expanded).toContain("two");
+		expect(expanded).not.toContain("two\n\n");
 	});
 
 	for (const scenario of [
@@ -344,7 +423,7 @@ describe("ToolExecutionComponent parity", () => {
 			title: "AGENTS.md",
 			path: join(process.cwd(), "AGENTS.md"),
 			content: "Hidden resource instructions",
-			compact: "read resource AGENTS.md",
+			compact: "Read resource AGENTS.md",
 			hidden: "Hidden resource instructions",
 			absent: undefined,
 		},
@@ -352,7 +431,7 @@ describe("ToolExecutionComponent parity", () => {
 			title: "Pi documentation",
 			path: getReadmePath(),
 			content: "Hidden docs content",
-			compact: "read docs README.md",
+			compact: "Read docs README.md",
 			hidden: "Hidden docs content",
 			absent: undefined,
 		},
@@ -374,6 +453,7 @@ describe("ToolExecutionComponent parity", () => {
 
 			const collapsed = stripAnsi(component.render(120).join("\n"));
 			expect(collapsed).toContain(scenario.compact);
+			expect(collapsed).toContain("▸");
 			expect(collapsed).not.toContain(scenario.hidden);
 			if (scenario.absent) {
 				expect(collapsed).not.toContain(scenario.absent);
@@ -381,15 +461,16 @@ describe("ToolExecutionComponent parity", () => {
 
 			component.setExpanded(true);
 			const expanded = stripAnsi(component.render(120).join("\n"));
+			expect(expanded).toContain("▾");
 			expect(expanded).toContain(scenario.hidden);
 		});
 	}
 
 	for (const scenario of [
 		{ title: "SKILL.md", path: join(process.cwd(), "attio", "SKILL.md"), compact: "[skill] attio:120-329" },
-		{ title: "Pi documentation", path: getReadmePath(), compact: "read docs README.md:120-329" },
+		{ title: "Pi documentation", path: getReadmePath(), compact: "Read docs README.md:120-329" },
 	] as const) {
-		test(`shows the read line range in compact ${scenario.title} reads before the expand hint`, () => {
+		test(`shows the read line range in compact ${scenario.title} reads before the chevron`, () => {
 			const component = new ToolExecutionComponent(
 				"read",
 				`tool-compact-range-${scenario.title}`,
@@ -399,10 +480,29 @@ describe("ToolExecutionComponent parity", () => {
 				createFakeTui(),
 				process.cwd(),
 			);
+			component.updateResult(
+				{ content: [{ type: "text", text: "Hidden content" }], details: undefined, isError: false },
+				false,
+			);
 
 			const collapsed = stripAnsi(component.render(120).join("\n"));
 			expect(collapsed).toContain(scenario.compact);
-			expect(collapsed.indexOf(":120-329")).toBeLessThan(collapsed.indexOf("to expand"));
+			expect(collapsed.indexOf(":120-329")).toBeLessThan(collapsed.indexOf("▸"));
 		});
 	}
+
+	test("marks the read tool row as a mouse click target", () => {
+		const component = new ToolExecutionComponent(
+			"read",
+			"tool-click-read",
+			{ path: getReadmePath() },
+			{},
+			createReadToolDefinition(process.cwd()),
+			createFakeTui(),
+			process.cwd(),
+		);
+
+		const rendered = component.render(120).join("\n");
+		expect(rendered).toContain("\x1b]9999;CT:tool-exec-tool-click-read\x07");
+	});
 });

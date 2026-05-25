@@ -1553,6 +1553,8 @@ export interface LoadExtensionsResult {
 	errors: Array<{ path: string; error: string }>;
 	/** Shared runtime - actions are throwing stubs until runner.initialize() */
 	runtime: ExtensionRuntime;
+	/** Shared event bus for extension-to-extension and host-to-extension signals. */
+	eventBus?: EventBus;
 }
 
 // ============================================================================

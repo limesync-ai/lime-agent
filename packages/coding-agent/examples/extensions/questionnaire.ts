@@ -80,6 +80,7 @@ export default function questionnaire(pi: ExtensionAPI) {
 		description:
 			"Ask the user one or more questions. Use for clarifying requirements, getting preferences, or confirming decisions. For single questions, shows a simple option list. For multiple questions, shows a tab-based interface.",
 		parameters: QuestionnaireParams,
+		renderShell: "self",
 
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			if (!ctx.hasUI) {
@@ -277,14 +278,14 @@ export default function questionnaire(pi: ExtensionAPI) {
 							const box = isAnswered ? "■" : "□";
 							const color = isAnswered ? "success" : "muted";
 							const text = ` ${box} ${lbl} `;
-							const styled = isActive ? theme.bg("selectedBg", theme.fg("text", text)) : theme.fg(color, text);
+							const styled = isActive ? theme.fg("accent", theme.bold(text)) : theme.fg(color, text);
 							tabs.push(`${styled} `);
 						}
 						const canSubmit = allAnswered();
 						const isSubmitTab = currentTab === questions.length;
 						const submitText = " ✓ Submit ";
 						const submitStyled = isSubmitTab
-							? theme.bg("selectedBg", theme.fg("text", submitText))
+							? theme.fg("accent", theme.bold(submitText))
 							: theme.fg(canSubmit ? "success" : "dim", submitText);
 						tabs.push(`${submitStyled} →`);
 						add(` ${tabs.join("")}`);
@@ -397,7 +398,7 @@ export default function questionnaire(pi: ExtensionAPI) {
 			const qs = (args.questions as Question[]) || [];
 			const count = qs.length;
 			const labels = qs.map((q) => q.label || q.id).join(", ");
-			let text = theme.fg("toolTitle", theme.bold("questionnaire "));
+			let text = `${theme.fg("warning", "?")} ${theme.fg("toolTitle", "Questionnaire")} `;
 			text += theme.fg("muted", `${count} question${count !== 1 ? "s" : ""}`);
 			if (labels) {
 				text += theme.fg("dim", ` (${truncateToWidth(labels, 40)})`);
@@ -412,14 +413,14 @@ export default function questionnaire(pi: ExtensionAPI) {
 				return new Text(text?.type === "text" ? text.text : "", 0, 0);
 			}
 			if (details.cancelled) {
-				return new Text(theme.fg("warning", "Cancelled"), 0, 0);
+				return new Text(`${theme.fg("warning", "✗")} ${theme.fg("toolTitle", "Questionnaire cancelled")}`, 0, 0);
 			}
 			const lines = details.answers.map((a) => {
 				if (a.wasCustom) {
-					return `${theme.fg("success", "✓ ")}${theme.fg("accent", a.id)}: ${theme.fg("muted", "(wrote) ")}${a.label}`;
+					return `${theme.fg("success", "✓")} ${theme.fg("accent", a.id)}: ${theme.fg("muted", "(wrote) ")}${a.label}`;
 				}
 				const display = a.index ? `${a.index}. ${a.label}` : a.label;
-				return `${theme.fg("success", "✓ ")}${theme.fg("accent", a.id)}: ${display}`;
+				return `${theme.fg("success", "✓")} ${theme.fg("accent", a.id)}: ${display}`;
 			});
 			return new Text(lines.join("\n"), 0, 0);
 		},

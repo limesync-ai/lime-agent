@@ -256,8 +256,8 @@ const renderApp = () => {
 	const appHtml = html`
 		<div class="w-full h-screen flex flex-col bg-background text-foreground overflow-hidden">
 			<!-- Header -->
-			<div class="flex items-center justify-between border-b border-border shrink-0">
-				<div class="flex items-center gap-2 px-4 py-">
+			<div class="flex h-12 items-center justify-between border-b border-border/70 shrink-0 bg-background/90 backdrop-blur">
+				<div class="flex items-center gap-1.5 px-3 min-w-0">
 					${Button({
 						variant: "ghost",
 						size: "sm",
@@ -292,7 +292,7 @@ const renderApp = () => {
 									${Input({
 										type: "text",
 										value: currentTitle,
-										className: "text-sm w-64",
+										className: "text-sm w-64 max-w-[45vw]",
 										onChange: async (e: Event) => {
 											const newTitle = (e.target as HTMLInputElement).value.trim();
 											if (newTitle && newTitle !== currentTitle && storage.sessions && currentSessionId) {
@@ -319,7 +319,7 @@ const renderApp = () => {
 									})}
 								</div>`
 								: html`<button
-									class="px-2 py-1 text-sm text-foreground hover:bg-secondary rounded transition-colors"
+									class="px-2 py-1 text-sm text-foreground hover:bg-secondary rounded-lg transition-colors truncate max-w-[45vw]"
 									@click=${() => {
 										isEditingTitle = true;
 										renderApp();
@@ -335,10 +335,10 @@ const renderApp = () => {
 								>
 									${currentTitle}
 								</button>`
-							: html`<span class="text-base font-semibold text-foreground">Pi Web UI Example</span>`
+							: html`<span class="px-2 text-sm font-medium text-foreground">Lime Agent</span>`
 					}
 				</div>
-				<div class="flex items-center gap-1 px-2">
+				<div class="flex items-center gap-1 px-3">
 					${Button({
 						variant: "ghost",
 						size: "sm",

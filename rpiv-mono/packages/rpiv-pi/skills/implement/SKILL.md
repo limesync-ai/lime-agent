@@ -44,7 +44,7 @@ If you encounter a mismatch:
 
   ```
 
-  Use the `ask_user_question` tool to resolve the mismatch. Question: "[Brief summary of the mismatch]". Header: "Mismatch". Options: "Follow the plan" (Adapt the plan's approach to the current code state); "Skip this change" (Move on without this change — it may not be needed); "Update the plan" (The plan needs to be revised before continuing).
+  Use the `ask_user` tool to resolve the mismatch. Question: "[Brief summary of the mismatch]". Header: "Mismatch". Options: "Follow the plan" (Adapt the plan's approach to the current code state); "Skip this change" (Move on without this change — it may not be needed); "Update the plan" (The plan needs to be revised before continuing).
 
 ## Verification Approach
 

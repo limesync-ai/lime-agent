@@ -40,6 +40,7 @@
 		"toolSuccessBg": "toolSuccessBg",
 		"toolErrorBg": "toolErrorBg",
 		"toolTitle": "",
+		"toolPath": "teal",
 		"toolOutput": "mediumGray",
 
 		"mdHeading": "yellow",

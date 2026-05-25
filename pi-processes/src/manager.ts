@@ -460,6 +460,22 @@ export class ProcessManager {
     return { ok: true, info: this.toProcessInfo(managed) };
   }
 
+  async killAllLive(): Promise<number> {
+    const liveProcesses = this.list().filter((p) => LIVE_STATUSES.has(p.status));
+
+    await Promise.all(
+      liveProcesses.map(async (proc) => {
+        const forceKill = proc.status !== "running";
+        await this.kill(proc.id, {
+          signal: forceKill ? "SIGKILL" : "SIGTERM",
+          timeoutMs: forceKill ? 200 : 3000,
+        });
+      }),
+    );
+
+    return liveProcesses.length;
+  }
+
   writeToStdin(
     id: string,
     data: string,

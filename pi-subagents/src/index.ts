@@ -438,6 +438,7 @@ export default function (pi: ExtensionAPI) {
     getCtx: () => currentCtx,
     manager,
   });
+  let unsubscribeInterrupt: (() => void) | undefined;
 
   // Broadcast readiness so extensions loaded after us can discover us
   pi.events.emit("subagents:ready", {});
@@ -448,6 +449,7 @@ export default function (pi: ExtensionAPI) {
     unsubSpawnRpc();
     unsubStopRpc();
     unsubPingRpc();
+    unsubscribeInterrupt?.();
     currentCtx = undefined;
     delete (globalThis as any)[MANAGER_KEY];
     manager.abortAll();
@@ -458,6 +460,10 @@ export default function (pi: ExtensionAPI) {
 
   // Live widget: show running agents above editor
   const widget = new AgentWidget(manager, agentActivity);
+  unsubscribeInterrupt = pi.events.on("interactive:interrupt", () => {
+    const aborted = manager.abortAll();
+    if (aborted > 0) widget.update();
+  });
 
   // ---- Join mode configuration ----
   let defaultJoinMode: JoinMode = 'smart';
@@ -566,6 +572,7 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool(defineTool({
     name: "Agent",
     label: "Agent",
+    renderShell: "self",
     description: `Launch a new agent to handle complex, multi-step tasks autonomously.
 
 The Agent tool launches specialized agents that autonomously handle complex tasks. Each agent type has specific capabilities and tools available to it.
@@ -643,10 +650,29 @@ Guidelines:
 
     // ---- Custom rendering: Claude Code style ----
 
-    renderCall(args, theme) {
+    renderCall(args, theme, context) {
+      const state = context.state;
+      if (context.executionStarted && context.isPartial && state.headerSpinnerInterval === undefined) {
+        state.headerSpinnerFrame = state.headerSpinnerFrame ?? 0;
+        state.headerSpinnerInterval = setInterval(() => {
+          state.headerSpinnerFrame = ((state.headerSpinnerFrame ?? 0) + 1) % SPINNER.length;
+          context.invalidate();
+        }, 120);
+      }
+      if (!context.isPartial && state.headerSpinnerInterval !== undefined) {
+        clearInterval(state.headerSpinnerInterval);
+        state.headerSpinnerInterval = undefined;
+      }
       const displayName = args.subagent_type ? getDisplayName(args.subagent_type) : "Agent";
       const desc = args.description ?? "";
-      return new Text("▸ " + theme.fg("toolTitle", theme.bold(displayName)) + (desc ? "  " + theme.fg("muted", desc) : ""), 0, 0);
+      const icon = context.executionStarted && context.isPartial
+        ? theme.fg("accent", SPINNER[state.headerSpinnerFrame ?? 0])
+        : theme.fg("accent", "::");
+      return new Text(
+        `${icon} ${theme.fg("toolTitle", theme.bold(displayName))} ${theme.fg("muted", "exploring")} ${theme.fg("dim", "▾")}${desc ? `\n   ${theme.fg("muted", `prompt: ${desc}`)}` : ""}`,
+        0,
+        0,
+      );
     },
 
     renderResult(result, { expanded, isPartial }, theme) {
@@ -671,16 +697,20 @@ Guidelines:
 
       // ---- While running (streaming) ----
       if (isPartial || details.status === "running") {
-        const frame = SPINNER[details.spinnerFrame ?? 0];
         const s = stats(details);
-        let line = theme.fg("accent", frame) + (s ? " " + s : "");
-        line += "\n" + theme.fg("dim", `  ⎿  ${details.activity ?? "thinking…"}`);
+        let line = `   ${theme.fg("dim", "working")}`;
+        if (s) line += ` ${theme.fg("dim", "·")} ${s}`;
+        line += "\n" + theme.fg("dim", `   └ ${details.activity ?? "thinking…"}`);
         return new Text(line, 0, 0);
       }
 
       // ---- Background agent launched ----
       if (details.status === "background") {
-        return new Text(theme.fg("dim", `  ⎿  Running in background (ID: ${details.agentId})`), 0, 0);
+        return new Text(
+          `   ${theme.fg("success", "✓")} ${theme.fg("dim", "running in background")}\n${theme.fg("dim", `   └ ${details.agentId}`)}`,
+          0,
+          0,
+        );
       }
 
       // ---- Completed / Steered ----
@@ -689,8 +719,9 @@ Guidelines:
         const isSteered = details.status === "steered";
         const icon = isSteered ? theme.fg("warning", "✓") : theme.fg("success", "✓");
         const s = stats(details);
-        let line = icon + (s ? " " + s : "");
-        line += " " + theme.fg("dim", "·") + " " + theme.fg("dim", duration);
+        let line = `   ${icon} ${theme.fg("dim", isSteered ? "wrapped up" : "done")}`;
+        if (s) line += ` ${theme.fg("dim", "·")} ${s}`;
+        line += ` ${theme.fg("dim", "·")} ${theme.fg("dim", duration)}`;
 
         if (expanded) {
           const resultText = result.content[0]?.type === "text" ? result.content[0].text : "";
@@ -705,7 +736,7 @@ Guidelines:
           }
         } else {
           const doneText = isSteered ? "Wrapped up (turn limit)" : "Done";
-          line += "\n" + theme.fg("dim", `  ⎿  ${doneText}`);
+          line += "\n" + theme.fg("dim", `   └ ${doneText}`);
         }
         return new Text(line, 0, 0);
       }
@@ -713,19 +744,20 @@ Guidelines:
       // ---- Stopped (user-initiated abort) ----
       if (details.status === "stopped") {
         const s = stats(details);
-        let line = theme.fg("dim", "■") + (s ? " " + s : "");
-        line += "\n" + theme.fg("dim", "  ⎿  Stopped");
+        let line = `   ${theme.fg("dim", "■")} ${theme.fg("dim", "stopped")}`;
+        if (s) line += ` ${theme.fg("dim", "·")} ${s}`;
         return new Text(line, 0, 0);
       }
 
       // ---- Error / Aborted (hard max_turns) ----
       const s = stats(details);
-      let line = theme.fg("error", "✗") + (s ? " " + s : "");
+      let line = `   ${theme.fg("error", "✗")} ${theme.fg("dim", details.status === "error" ? "error" : "aborted")}`;
+      if (s) line += ` ${theme.fg("dim", "·")} ${s}`;
 
       if (details.status === "error") {
-        line += "\n" + theme.fg("error", `  ⎿  Error: ${details.error ?? "unknown"}`);
+        line += "\n" + theme.fg("error", `   └ Error: ${details.error ?? "unknown"}`);
       } else {
-        line += "\n" + theme.fg("warning", "  ⎿  Aborted (max turns exceeded)");
+        line += "\n" + theme.fg("warning", "   └ Aborted (max turns exceeded)");
       }
 
       return new Text(line, 0, 0);

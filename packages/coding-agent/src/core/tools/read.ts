@@ -6,7 +6,6 @@ import { constants } from "fs";
 import { access as fsAccess, readFile as fsReadFile } from "fs/promises";
 import { type Static, Type } from "typebox";
 import { getReadmePath } from "../../config.js";
-import { keyHint, keyText } from "../../modes/interactive/components/keybinding-hints.js";
 import { getLanguageFromPath, highlightCode, type Theme } from "../../modes/interactive/theme/theme.js";
 import { formatDimensionNote, resizeImage } from "../../utils/image-resize.js";
 import { detectSupportedImageMimeTypeFromFile } from "../../utils/mime.js";
@@ -70,12 +69,21 @@ function formatReadLineRange(args: ReadRenderArgs | undefined, theme: Theme): st
 	return theme.fg("warning", `:${startLine}${endLine ? `-${endLine}` : ""}`);
 }
 
-function formatReadCall(args: ReadRenderArgs | undefined, theme: Theme): string {
+function formatReadStatusCall(
+	args: ReadRenderArgs | undefined,
+	theme: Theme,
+	isPartial: boolean,
+	isError: boolean,
+	expanded: boolean,
+): string {
 	const rawPath = str(args?.file_path ?? args?.path);
 	const path = rawPath !== null ? shortenPath(rawPath) : null;
 	const invalidArg = invalidArgText(theme);
-	const pathDisplay = path === null ? invalidArg : path ? theme.fg("accent", path) : theme.fg("toolOutput", "...");
-	return `${theme.fg("toolTitle", theme.bold("read"))} ${pathDisplay}${formatReadLineRange(args, theme)}`;
+	const pathDisplay = path === null ? invalidArg : path ? theme.fg("toolPath", path) : theme.fg("toolOutput", "...");
+	const glyph = isError ? theme.fg("error", "✗") : isPartial ? theme.fg("muted", "…") : theme.fg("success", "✓");
+	const verb = isPartial ? "Reading" : "Read";
+	const chevron = isPartial ? "" : theme.fg("muted", expanded ? " ▾" : " ▸");
+	return `${glyph} ${theme.fg("toolTitle", verb)} ${pathDisplay}${formatReadLineRange(args, theme)}${chevron}`;
 }
 
 function trimTrailingEmptyLines(lines: string[]): string[] {
@@ -143,23 +151,30 @@ function formatCompactReadCall(
 	classification: CompactReadClassification,
 	args: ReadRenderArgs | undefined,
 	theme: Theme,
+	isPartial: boolean,
+	isError: boolean,
 ): string {
-	const expandHint = theme.fg("dim", ` (${keyText("app.tools.expand")} to expand)`);
+	const glyph = isError ? theme.fg("error", "✗") : isPartial ? theme.fg("muted", "…") : theme.fg("success", "✓");
+	const chevron = isPartial ? "" : theme.fg("muted", " ▸");
 	if (classification.kind === "skill") {
 		return (
+			glyph +
+			" " +
 			theme.fg("customMessageLabel", `\x1b[1m[skill]\x1b[22m `) +
 			theme.fg("customMessageText", classification.label) +
 			formatReadLineRange(args, theme) +
-			expandHint
+			chevron
 		);
 	}
 
 	return (
-		theme.fg("toolTitle", theme.bold(`read ${classification.kind}`)) +
+		glyph +
 		" " +
-		theme.fg("accent", classification.label) +
+		theme.fg("toolTitle", `Read ${classification.kind}`) +
+		" " +
+		theme.fg("toolPath", classification.label) +
 		formatReadLineRange(args, theme) +
-		expandHint
+		chevron
 	);
 }
 
@@ -169,10 +184,9 @@ function formatReadResult(
 	options: ToolRenderResultOptions,
 	theme: Theme,
 	showImages: boolean,
-	cwd: string,
 	isError: boolean,
 ): string {
-	if (!options.expanded && !isError && getCompactReadClassification(args, cwd)) {
+	if (!options.expanded && !isError) {
 		return "";
 	}
 
@@ -186,7 +200,7 @@ function formatReadResult(
 	const remaining = lines.length - maxLines;
 	let text = `\n${displayLines.map((line) => (lang ? replaceTabs(line) : theme.fg("toolOutput", replaceTabs(line)))).join("\n")}`;
 	if (remaining > 0) {
-		text += `${theme.fg("muted", `\n... (${remaining} more lines,`)} ${keyHint("app.tools.expand", "to expand")})`;
+		text += theme.fg("muted", `\n... (${remaining} more lines) ▸`);
 	}
 
 	const truncation = result.details?.truncation;
@@ -215,6 +229,7 @@ export function createReadToolDefinition(
 		promptSnippet: "Read file contents",
 		promptGuidelines: ["Use read to examine files instead of cat or sed."],
 		parameters: readSchema,
+		renderShell: "self",
 		async execute(
 			_toolCallId,
 			{ path, offset, limit }: { path: string; offset?: number; limit?: number },
@@ -343,15 +358,15 @@ export function createReadToolDefinition(
 			const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
 			const classification = !context.expanded ? getCompactReadClassification(args, context.cwd) : undefined;
 			text.setText(
-				classification ? formatCompactReadCall(classification, args, theme) : formatReadCall(args, theme),
+				classification
+					? formatCompactReadCall(classification, args, theme, context.isPartial, context.isError)
+					: formatReadStatusCall(args, theme, context.isPartial, context.isError, context.expanded),
 			);
 			return text;
 		},
 		renderResult(result, options, theme, context) {
 			const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
-			text.setText(
-				formatReadResult(context.args, result, options, theme, context.showImages, context.cwd, context.isError),
-			);
+			text.setText(formatReadResult(context.args, result, options, theme, context.showImages, context.isError));
 			return text;
 		},
 	};

@@ -137,14 +137,14 @@ Use the grounded-questions-one-at-a-time pattern. Use a **❓ Question:** prefix
 
 **Choosing question format:**
 
-- **`ask_user_question` tool** — when your question has 2-4 concrete options from code analysis (pattern conflicts, integration choices, scope boundaries, priority overrides). The user can always pick "Other" for free-text. Example:
+- **`ask_user` tool** — when your question has 2-4 concrete options from code analysis (pattern conflicts, integration choices, scope boundaries, priority overrides). The user can always pick "Other" for free-text. Example:
 
-  > Use the `ask_user_question` tool with the following question: "Found 2 mapping approaches — which should new code follow?". Header: "Pattern". Options: "Manual mapping (Recommended)" (Used in OrderService (src/services/OrderService.ts:45) — 8 occurrences); "AutoMapper" (Used in UserService (src/services/UserService.ts:12) — 2 occurrences).
+  > Use the `ask_user` tool with the following question: "Found 2 mapping approaches — which should new code follow?". Header: "Pattern". Options: "Manual mapping (Recommended)" (Used in OrderService (src/services/OrderService.ts:45) — 8 occurrences); "AutoMapper" (Used in UserService (src/services/UserService.ts:12) — 2 occurrences).
 
 - **Free-text with ❓ Question: prefix** — when the question is open-ended and options can't be predicted (discovery, "what am I missing?", corrections). Example:
   "❓ Question: Integration scanner found no background job registration for this area. Is that expected, or is there async processing I'm not seeing?"
 
-**Batching**: When you have 2-4 independent questions (answers don't depend on each other), you MAY batch them in a single `ask_user_question` call. Keep dependent questions sequential.
+**Batching**: When you have 2-4 independent questions (answers don't depend on each other), you MAY batch them in a single `ask_user` call. Keep dependent questions sequential.
 
 **Classify each response:**
 
@@ -173,7 +173,7 @@ Scope: [what's in] | Not building: [what's out]
 Files: [N] new, [M] modified
 ```
 
-Use the `ask_user_question` tool to confirm before proceeding. Question: "[Summary from design brief above]. Ready to proceed to decomposition?". Header: "Design". Options: "Proceed (Recommended)" (Decompose into vertical slices, then generate code slice-by-slice); "Adjust decisions" (Revisit one or more architectural decisions above); "Change scope" (Add or remove items from the building/not-building lists).
+Use the `ask_user` tool to confirm before proceeding. Question: "[Summary from design brief above]. Ready to proceed to decomposition?". Header: "Design". Options: "Proceed (Recommended)" (Decompose into vertical slices, then generate code slice-by-slice); "Adjust decisions" (Revisit one or more architectural decisions above); "Change scope" (Add or remove items from the building/not-building lists).
 
 ## Step 6: Feature Decomposition
 
@@ -203,7 +203,7 @@ After the design summary is confirmed, decompose the feature into vertical slice
    - Sequential: each builds on the previous (never parallel)
    - Foundation first: types/interfaces always Slice 1
 
-3. **Confirm decomposition** using the `ask_user_question` tool. Question: "[N] slices for [feature]. Slice 1: [name] (foundation). Slices 2-N: [brief]. Approve decomposition?". Header: "Slices". Options: "Approve (Recommended)" (Proceed to slice-by-slice code generation); "Adjust slices" (Reorder, merge, or split slices before generating); "Change scope" (Add or remove files from the decomposition).
+3. **Confirm decomposition** using the `ask_user` tool. Question: "[N] slices for [feature]. Slice 1: [name] (foundation). Slices 2-N: [brief]. Approve decomposition?". Header: "Slices". Options: "Approve (Recommended)" (Proceed to slice-by-slice code generation); "Adjust slices" (Reorder, merge, or split slices before generating); "Change scope" (Add or remove files from the decomposition).
 
 4. **Create skeleton artifact** — immediately after decomposition is approved:
    - Determine metadata: filename `thoughts/shared/designs/YYYY-MM-DD_HH-MM-SS_topic.md`, repository name from git root, branch and commit from the git context injected at the start of the session (fallbacks: "no-branch" / "no-commit"), designer from the injected User (fallback: "unknown")
@@ -285,7 +285,7 @@ Present a **condensed review** of the slice — NOT the full generated code. The
 
 **If the developer asks to see full code**, show it inline — exception, not default.
 
-Use the `ask_user_question` tool to confirm. Question: "Slice [N/M]: [slice name] — [files affected]. [1-line summary]. Approve?". Header: "Slice [N]". Options: "Approve (Recommended)" (Lock this slice, write to artifact, proceed to slice [N+1]); "Revise this slice" (Adjust code before proceeding — describe what to change); "Rethink remaining slices" (This slice reveals a design issue — revisit decomposition).
+Use the `ask_user` tool to confirm. Question: "Slice [N/M]: [slice name] — [files affected]. [1-line summary]. Approve?". Header: "Slice [N]". Options: "Approve (Recommended)" (Lock this slice, write to artifact, proceed to slice [N+1]); "Revise this slice" (Adjust code before proceeding — describe what to change); "Rethink remaining slices" (This slice reveals a design issue — revisit decomposition).
 
 **Checkpoint cadence**: Slices 1-2: always individual. Slices 3+: individual if (a) mid-generation agent spawn was needed, (b) MODIFY touches an undiscussed file, or (c) self-verify fixed a violation.
 Otherwise batch 2-3 slices (max 3).
@@ -319,7 +319,7 @@ After all slices are complete, review cross-slice consistency:
 
 2. **Verify research constraints**: Check each Precedent & Lesson and Verification Note from the research artifact against the generated code. List satisfaction status.
 
-3. **Confirm using the `ask_user_question` tool**. Question: "[N] slices complete, [M] files total. Cross-slice consistency verified. Proceed to design artifact?". Header: "Verify". Options: "Proceed (Recommended)" (Finalize the design artifact (verify completeness, update status)); "Revisit slice" (Reopen a specific slice for revision — Edit the artifact after); "Add missing" (A file or integration point is missing — add to artifact).
+3. **Confirm using the `ask_user` tool**. Question: "[N] slices complete, [M] files total. Cross-slice consistency verified. Proceed to design artifact?". Header: "Verify". Options: "Proceed (Recommended)" (Finalize the design artifact (verify completeness, update status)); "Revisit slice" (Reopen a specific slice for revision — Edit the artifact after); "Add missing" (A file or integration point is missing — add to artifact).
 
 ## Step 9: Finalize Design Artifact
 

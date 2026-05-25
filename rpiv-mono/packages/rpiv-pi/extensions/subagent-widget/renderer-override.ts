@@ -26,6 +26,7 @@ interface SubagentToolShape {
 	description?: string;
 	parameters?: unknown;
 	execute?: unknown;
+	renderShell?: unknown;
 	renderCall?: unknown;
 	renderResult?: unknown;
 }
@@ -71,6 +72,7 @@ function applyRpivOverrides(tool: SubagentToolShape, quietRenderResult: QuietRen
 		description: getCuratedSubagentDescription(),
 		parameters: rewriteSubagentParameters(tool.parameters, buildAgentEnumDescription()),
 		execute: tool.execute ? buildFilteredExecute(tool.execute as ExecuteFn) : tool.execute,
+		renderShell: "self",
 		renderCall: buildQuietRenderCall(tool.renderCall as OriginalRenderCall | undefined),
 		renderResult: quietRenderResult,
 	};

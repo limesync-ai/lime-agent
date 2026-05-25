@@ -71,13 +71,13 @@ Present the candidate set and default dimensions to the developer before per-can
    - migration-cost · verification-cost · novelty
    ```
 
-2. **Confirm via the `ask_user_question` tool with the following question:** "[N] candidates, [D] dimensions. Begin per-candidate fit dispatch?". Header: "Candidates". Options: "Proceed (Recommended)" (Begin per-candidate fit dispatch with all [N] candidates and all [D] dimensions); "Adjust candidates or dimensions" (Rename, add, or drop candidates; drop dimensions that don't apply); "Re-generate candidates" (Candidates look wrong — re-run Step 2 with adjusted scope).
+2. **Confirm via the `ask_user` tool with the following question:** "[N] candidates, [D] dimensions. Begin per-candidate fit dispatch?". Header: "Candidates". Options: "Proceed (Recommended)" (Begin per-candidate fit dispatch with all [N] candidates and all [D] dimensions); "Adjust candidates or dimensions" (Rename, add, or drop candidates; drop dimensions that don't apply); "Re-generate candidates" (Candidates look wrong — re-run Step 2 with adjusted scope).
 
 3. **Handle developer input:**
 
    **"Proceed"**: lock the candidate × dimension set; advance to Step 4.
 
-   **"Adjust candidates or dimensions"**: ask the follow-up free-text question with prefix `❓ Question:` — "Which candidates and dimensions should be added, dropped, or renamed?" — apply edits to the working set, re-present, and confirm again with the same three-option `ask_user_question`.
+   **"Adjust candidates or dimensions"**: ask the follow-up free-text question with prefix `❓ Question:` — "Which candidates and dimensions should be added, dropped, or renamed?" — apply edits to the working set, re-present, and confirm again with the same three-option `ask_user`.
 
    **"Re-generate candidates"**: ask the follow-up free-text question with prefix `❓ Question:` — "What should be different in candidate generation? (narrower/wider scope, different ecosystem, exclude approach X, …)" — return to Step 2 with the updated scope, then re-enter Step 3.
 

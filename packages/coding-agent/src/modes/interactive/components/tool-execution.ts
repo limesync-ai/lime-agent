@@ -3,11 +3,24 @@ import type { ToolDefinition, ToolRenderContext } from "../../../core/extensions
 import { createAllToolDefinitions, type ToolName } from "../../../core/tools/index.js";
 import { getTextOutput as getRenderedTextOutput } from "../../../core/tools/render-utils.js";
 import { convertToPng } from "../../../utils/image-convert.js";
+import { clickTargetMarker, registerClickTarget } from "../mouse-selection.js";
 import { theme } from "../theme/theme.js";
 
 export interface ToolExecutionOptions {
 	showImages?: boolean;
 	imageWidthCells?: number;
+}
+
+class IndentedContainer extends Container {
+	constructor(private indent = 1) {
+		super();
+	}
+
+	override render(width: number): string[] {
+		const contentWidth = Math.max(1, width - this.indent);
+		const prefix = " ".repeat(this.indent);
+		return super.render(contentWidth).map((line) => prefix + line);
+	}
 }
 
 export class ToolExecutionComponent extends Container {
@@ -30,6 +43,8 @@ export class ToolExecutionComponent extends Container {
 	private builtInToolDefinition?: ToolDefinition<any, any>;
 	private ui: TUI;
 	private cwd: string;
+	private readonly clickTargetId: string;
+	private readonly unregisterClickTarget: () => void;
 	private executionStarted = false;
 	private argsComplete = false;
 	private result?: {
@@ -59,6 +74,11 @@ export class ToolExecutionComponent extends Container {
 		this.imageWidthCells = options.imageWidthCells ?? 60;
 		this.ui = ui;
 		this.cwd = cwd;
+		this.clickTargetId = `tool-exec-${toolCallId}`;
+		this.unregisterClickTarget = registerClickTarget(this.clickTargetId, () => {
+			this.setExpanded(!this.expanded);
+			this.ui.requestRender();
+		});
 
 		this.addChild(new Spacer(1));
 
@@ -67,7 +87,7 @@ export class ToolExecutionComponent extends Container {
 		// contentText is reserved for generic fallback rendering when no tool definition exists.
 		this.contentBox = new Box(1, 1, (text: string) => theme.bg("toolPendingBg", text));
 		this.contentText = new Text("", 1, 1, (text: string) => theme.bg("toolPendingBg", text));
-		this.selfRenderContainer = new Container();
+		this.selfRenderContainer = new IndentedContainer(1);
 
 		if (this.hasRendererDefinition()) {
 			this.addChild(this.getRenderShell() === "self" ? this.selfRenderContainer : this.contentBox);
@@ -222,7 +242,16 @@ export class ToolExecutionComponent extends Container {
 		if (this.hideComponent) {
 			return [];
 		}
-		return super.render(width);
+		const lines = super.render(width);
+		const targetLineIndex = lines.findIndex((line) => line.length > 0);
+		if (targetLineIndex !== -1) {
+			lines[targetLineIndex] = clickTargetMarker(this.clickTargetId) + lines[targetLineIndex];
+		}
+		return lines;
+	}
+
+	dispose(): void {
+		this.unregisterClickTarget();
 	}
 
 	private updateDisplay(): void {

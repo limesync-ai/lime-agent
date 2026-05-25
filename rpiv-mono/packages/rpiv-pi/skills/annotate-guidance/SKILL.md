@@ -71,7 +71,7 @@ Use the current working directory as the target project by default. If the user 
 
      Does this look right? Should I add or remove any locations?
      ```
-   - Use the `ask_user_question` tool with the following question: "[N] guidance targets across [M] layers. Proceed with analysis?". Options: "Proceed (Recommended)" (Analyze all proposed folders and write architecture.md files); "Add folders" (I want to add more folders to the target list); "Remove folders" (Some proposed folders should be skipped).
+   - Use the `ask_user` tool with the following question: "[N] guidance targets across [M] layers. Proceed with analysis?". Options: "Proceed (Recommended)" (Analyze all proposed folders and write architecture.md files); "Add folders" (I want to add more folders to the target list); "Remove folders" (Some proposed folders should be skipped).
    - Adjust the target list based on user feedback
 
 4. **Pass 2 — Analyze each layer (parallel analyzer agents):**
@@ -132,12 +132,12 @@ Use the current working directory as the target project by default. If the user 
 
    **Choosing question format:**
 
-   - **`ask_user_question` tool** — when your question has 2-4 concrete options from code analysis (pattern conflicts, integration choices, scope boundaries, priority overrides). The user can always pick "Other" for free-text. Example: Use the `ask_user_question` tool with the question "Found 2 mapping approaches — which should new code follow?". Options: "Manual mapping (Recommended)" (Used in OrderService (src/services/OrderService.ts:45) — 8 occurrences); "AutoMapper" (Used in UserService (src/services/UserService.ts:12) — 2 occurrences).
+   - **`ask_user` tool** — when your question has 2-4 concrete options from code analysis (pattern conflicts, integration choices, scope boundaries, priority overrides). The user can always pick "Other" for free-text. Example: Use the `ask_user` tool with the question "Found 2 mapping approaches — which should new code follow?". Options: "Manual mapping (Recommended)" (Used in OrderService (src/services/OrderService.ts:45) — 8 occurrences); "AutoMapper" (Used in UserService (src/services/UserService.ts:12) — 2 occurrences).
 
    - **Free-text with ❓ Question: prefix** — when the question is open-ended and options can't be predicted (discovery, "what am I missing?", corrections). Example:
      "❓ Question: Integration scanner found no background job registration for this area. Is that expected, or is there async processing I'm not seeing?"
 
-   **Batching**: When you have 2-4 independent questions (answers don't depend on each other), you MAY batch them in a single `ask_user_question` call. Keep dependent questions sequential.
+   **Batching**: When you have 2-4 independent questions (answers don't depend on each other), you MAY batch them in a single `ask_user` call. Keep dependent questions sequential.
 
    **Incorporate developer input:**
 

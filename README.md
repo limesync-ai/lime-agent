@@ -25,7 +25,9 @@
 
 > **Looking for the pi coding agent?** See **[packages/coding-agent](packages/coding-agent)** for installation and usage.
 
-Tools for building AI agents.
+Tools for building AI agents. Requires **Node.js >= 20**.
+
+All packages use **lockstep versioning** — every package always shares the same version number. A patch bumps all packages; a minor bumps all packages.
 
 ## Share your OSS coding agent sessions
 
@@ -43,15 +45,36 @@ I regularly publish my own `pi-mono` work sessions here:
 
 - [badlogicgames/pi-mono on Hugging Face](https://huggingface.co/datasets/badlogicgames/pi-mono)
 
+## Architecture overview
+
+```
+tui ──> ai ──> agent ──> coding-agent
+web-ui (standalone)
+```
+
+- **[@mariozechner/pi-tui](packages/tui)** — Terminal UI library with differential rendering. No runtime dependencies on other pi packages.
+- **[@mariozechner/pi-ai](packages/ai)** — Unified multi-provider LLM API. Depends on `pi-tui` for its interactive model selection prompt.
+- **[@mariozechner/pi-agent-core](packages/agent)** — Stateful agent runtime with tool calling, event streaming, and steering/follow-up. Built on `pi-ai`.
+- **[@mariozechner/pi-coding-agent](packages/coding-agent)** — Interactive coding agent CLI. Built on `pi-agent-core`.
+- **[@mariozechner/pi-web-ui](packages/web-ui)** — Standalone web components for AI chat interfaces. Does not depend on any other pi package.
+
 ## Packages
 
-| Package | Description |
-|---------|-------------|
-| **[@mariozechner/pi-ai](packages/ai)** | Unified multi-provider LLM API (OpenAI, Anthropic, Google, etc.) |
-| **[@mariozechner/pi-agent-core](packages/agent)** | Agent runtime with tool calling and state management |
-| **[@mariozechner/pi-coding-agent](packages/coding-agent)** | Interactive coding agent CLI |
-| **[@mariozechner/pi-tui](packages/tui)** | Terminal UI library with differential rendering |
-| **[@mariozechner/pi-web-ui](packages/web-ui)** | Web components for AI chat interfaces |
+| Package | Version | Description |
+|---------|---------|-------------|
+| **[@mariozechner/pi-tui](packages/tui)** | [![npm version](https://img.shields.io/npm/v/@mariozechner/pi-tui?style=flat-square)](https://www.npmjs.com/package/@mariozechner/pi-tui) | Terminal UI library with differential rendering, virtualized lists, and keybindings |
+| **[@mariozechner/pi-ai](packages/ai)** | [![npm version](https://img.shields.io/npm/v/@mariozechner/pi-ai?style=flat-square)](https://www.npmjs.com/package/@mariozechner/pi-ai) | Unified multi-provider LLM API (OpenAI, Anthropic, Google, Bedrock, GitHub Copilot, and more) |
+| **[@mariozechner/pi-agent-core](packages/agent)** | [![npm version](https://img.shields.io/npm/v/@mariozechner/pi-agent-core?style=flat-square)](https://www.npmjs.com/package/@mariozechner/pi-agent-core) | Agent runtime with tool calling, event streaming, steering, and follow-up |
+| **[@mariozechner/pi-coding-agent](packages/coding-agent)** | [![npm version](https://img.shields.io/npm/v/@mariozechner/pi-coding-agent?style=flat-square)](https://www.npmjs.com/package/@mariozechner/pi-coding-agent) | Interactive coding agent CLI with file editing, bash, and project-aware tooling |
+| **[@mariozechner/pi-web-ui](packages/web-ui)** | [![npm version](https://img.shields.io/npm/v/@mariozechner/pi-web-ui?style=flat-square)](https://www.npmjs.com/package/@mariozechner/pi-web-ui) | Standalone web components for building AI chat interfaces |
+
+## Extensions
+
+| Package | Version | Description |
+|---------|---------|-------------|
+| **[@eko24ive/pi-ask](pi-ask)** | [![npm version](https://img.shields.io/npm/v/@eko24ive/pi-ask?style=flat-square)](https://www.npmjs.com/package/@eko24ive/pi-ask) | Ask tool that lets the agent pause, ask structured questions in the terminal UI, and continue with normalized answers instead of guessing |
+
+Install with `pi install npm:@eko24ive/pi-ask`.
 
 ## Chat bot workflows
 
